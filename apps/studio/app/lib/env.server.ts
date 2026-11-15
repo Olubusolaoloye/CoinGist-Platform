@@ -21,6 +21,9 @@ export function assertEnv() {
   if (env.authMode === "supabase" && (!env.supabaseUrl || !env.supabaseAnonKey)) {
     throw new Error("SUPABASE_URL and SUPABASE_ANON_KEY are required when STUDIO_AUTH=supabase");
   }
+  if (isProd && /(^|,)\s*\*\*\s*(,|$)/.test(process.env["STUDIO_ALLOWED_ACTION_ORIGINS"] ?? "")) {
+    throw new Error('STUDIO_ALLOWED_ACTION_ORIGINS="**" (any site) is not allowed in production');
+  }
   if (isProd && env.sessionSecret.length < 32) {
     throw new Error("SESSION_SECRET (32+ characters) is required in production");
   }
