@@ -1,6 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 import type { RichTextDoc, RichTextNode } from "@coingist/types";
-import { isExternal, safeHref, safeImageSrc } from "./url.js";
+import { isExternal, safeHref, safeImageSrc, xPostUrl, youtubeId } from "@coingist/types";
 
 export interface RichTextOptions {
   /** Absolute site origin, used to tell internal from external links. */
@@ -69,6 +69,39 @@ function renderNode(node: RichTextNode, opts: RichTextOptions, key: string): Rea
         <figure>
           <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
           {caption ? <figcaption>{caption}</figcaption> : null}
+        </figure>
+      );
+    }
+    case "youtube": {
+      // Link card, not an iframe: no third-party scripts or cookies until the reader chooses.
+      const id = youtubeId(node.attrs?.["src"]);
+      if (!id) return null;
+      const href = `https://www.youtube.com/watch?v=${id}`;
+      return (
+        <figure className="embed embed-youtube">
+          <a href={href} target="_blank" rel="noopener noreferrer">
+            <img
+              src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
+              alt="Video thumbnail"
+              width={480}
+              height={360}
+              loading="lazy"
+              decoding="async"
+            />
+            <span>Watch on YouTube</span>
+          </a>
+        </figure>
+      );
+    }
+    case "xPost": {
+      const url = xPostUrl(node.attrs?.["src"]);
+      if (!url) return null;
+      const handle = url.split("/")[3];
+      return (
+        <figure className="embed embed-x">
+          <a href={url} target="_blank" rel="noopener noreferrer">
+            View @{handle}'s post on X
+          </a>
         </figure>
       );
     }

@@ -121,7 +121,11 @@ create table public.posts (
 
   -- Sponsored content must be labelled and attributed.
   constraint posts_sponsored_type check (type <> 'sponsored' or is_sponsored),
-  constraint posts_sponsor_required check (not is_sponsored or sponsor_id is not null),
+  -- Drafts may be written before the sponsor is attached; approval onwards needs one.
+  constraint posts_sponsor_required check (
+    not is_sponsored or sponsor_id is not null
+    or status in ('draft', 'in_review', 'changes_requested')
+  ),
   -- Nothing reaches approved/scheduled/published without a human approver.
   constraint posts_human_approval check (
     status not in ('approved', 'scheduled', 'published')

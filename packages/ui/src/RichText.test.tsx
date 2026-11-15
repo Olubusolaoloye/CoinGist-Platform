@@ -82,6 +82,23 @@ describe("RichText sanitising", () => {
   });
 });
 
+describe("embeds", () => {
+  it("renders YouTube and X embeds as link cards, never iframes", () => {
+    const yt = html([{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ" } }]);
+    expect(yt).toContain('href="https://www.youtube.com/watch?v=dQw4w9WgXcQ"');
+    expect(yt).toContain('src="https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg"');
+    expect(yt).not.toContain("iframe");
+    const x = html([{ type: "xPost", attrs: { src: "https://twitter.com/coingist/status/123456789" } }]);
+    expect(x).toContain('href="https://x.com/coingist/status/123456789"');
+    expect(x).toContain("@coingist");
+  });
+
+  it("drops embeds with non-matching URLs", () => {
+    expect(html([{ type: "youtube", attrs: { src: "https://evil.test/watch?v=dQw4w9WgXcQ" } }])).toBe("");
+    expect(html([{ type: "xPost", attrs: { src: "javascript:alert(1)" } }])).toBe("");
+  });
+});
+
 describe("readingTimeMinutes", () => {
   it("is at least one minute and scales with length", () => {
     const words = (n: number): RichTextDoc => ({ type: "doc", content: [{ type: "paragraph", content: [t(Array(n).fill("w").join(" "))] }] });

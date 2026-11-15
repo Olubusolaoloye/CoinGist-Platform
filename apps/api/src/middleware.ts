@@ -62,43 +62,70 @@ export function requirePermission(permission: Permission) {
   });
 }
 
-/**
- * Fixed-window, in-memory rate limiter keyed by client IP. Runs before token verification so
- * invalid-token floods are throttled too. Per-instance only: put Cloudflare rate limiting in
- * front in production and swap this for a shared store if the API scales out.
- */
-export function rateLimit(opts: { windowMs: number; max: number; now?: () => number }) {
+export function clientIp(c: { req: { header(name: string): string | undefined } }): string {
+  return (
+    c.req.header("cf-connecting-ip") ??
+    c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
+    "unknown"
+  );
+}
+
+/** Fixed-window counters. Per-instance only: Cloudflare rate limiting sits in front in production. */
+function windowCounter(opts: { windowMs: number; now: () => number }) {
   const hits = new Map<string, { count: number; resetAt: number }>();
-  const now = opts.now ?? Date.now;
-
-  return createMiddleware<AppEnv>(async (c, next) => {
-    const t = now();
-    const key =
-      c.req.header("cf-connecting-ip") ??
-      c.req.header("x-forwarded-for")?.split(",")[0]?.trim() ??
-      "unknown";
-
-    let entry = hits.get(key);
-    if (!entry || entry.resetAt <= t) {
-      entry = { count: 0, resetAt: t + opts.windowMs };
-      hits.set(key, entry);
-      if (hits.size > 10_000) {
-        for (const [k, v] of hits) if (v.resetAt <= t) hits.delete(k);
+  return {
+    peek(key: string) {
+      const e = hits.get(key);
+      return e && e.resetAt > opts.now() ? e : { count: 0, resetAt: opts.now() + opts.windowMs };
+    },
+    hit(key: string) {
+      const t = opts.now();
+      let e = hits.get(key);
+      if (!e || e.resetAt <= t) {
+        e = { count: 0, resetAt: t + opts.windowMs };
+        hits.set(key, e);
+        if (hits.size > 10_000) for (const [k, v] of hits) if (v.resetAt <= t) hits.delete(k);
       }
-    }
-    entry.count += 1;
+      e.count += 1;
+      return e;
+    },
+  };
+}
 
-    const limitHeaders = {
-      "RateLimit-Limit": String(opts.max),
-      "RateLimit-Remaining": String(Math.max(0, opts.max - entry.count)),
-    };
-    if (entry.count > opts.max) {
-      throw error(429, "rate_limited", "Too many requests", {
-        ...limitHeaders,
-        "Retry-After": String(Math.ceil((entry.resetAt - t) / 1000)),
-      });
-    }
+const tooMany = (resetAt: number, now: number, max: number) =>
+  error(429, "rate_limited", "Too many requests", {
+    "RateLimit-Limit": String(max),
+    "RateLimit-Remaining": "0",
+    "Retry-After": String(Math.max(1, Math.ceil((resetAt - now) / 1000))),
+  });
+
+/**
+ * Per-IP limit on failed authentication. Runs before token checks and counts only 401s, so
+ * bad-token floods are throttled while busy servers that call on behalf of many signed-in
+ * users (Studio, the web SSR server) are never limited by their shared IP.
+ */
+export function authFailureLimit(opts: { windowMs: number; max: number; now?: () => number }) {
+  const now = opts.now ?? Date.now;
+  const counter = windowCounter({ windowMs: opts.windowMs, now });
+  return createMiddleware<AppEnv>(async (c, next) => {
+    const ip = clientIp(c);
+    const current = counter.peek(ip);
+    if (current.count >= opts.max) throw tooMany(current.resetAt, now(), opts.max);
     await next();
-    for (const [k, v] of Object.entries(limitHeaders)) c.header(k, v);
+    if (c.res.status === 401) counter.hit(ip);
+  });
+}
+
+/** Per-caller limit: by user id when signed in, by IP otherwise. Runs after authenticate(). */
+export function rateLimit(opts: { windowMs: number; max: number; now?: () => number }) {
+  const now = opts.now ?? Date.now;
+  const counter = windowCounter({ windowMs: opts.windowMs, now });
+  return createMiddleware<AppEnv>(async (c, next) => {
+    const key = c.var.claims ? `user:${c.var.claims.sub}` : `ip:${clientIp(c)}`;
+    const entry = counter.hit(key);
+    if (entry.count > opts.max) throw tooMany(entry.resetAt, now(), opts.max);
+    await next();
+    c.header("RateLimit-Limit", String(opts.max));
+    c.header("RateLimit-Remaining", String(Math.max(0, opts.max - entry.count)));
   });
 }

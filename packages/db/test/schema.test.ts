@@ -74,12 +74,17 @@ describe("schema", () => {
     expect(await flag()).toBe(false);
   });
 
-  it("rejects sponsored posts without a sponsor", async () => {
+  it("allows sponsored drafts without a sponsor but not approved ones", async () => {
     const u = await t.createUser({ role: "writer" });
+    await t.pg.query(
+      `insert into public.posts (type, title, slug, author_id, is_sponsored)
+       values ('sponsored', 'Ad', 'ad-draft-no-sponsor', $1, true)`,
+      [u.id],
+    );
     await expect(
       t.pg.query(
-        `insert into public.posts (type, title, slug, author_id, is_sponsored)
-         values ('sponsored', 'Ad', 'ad-no-sponsor', $1, true)`,
+        `insert into public.posts (type, title, slug, author_id, is_sponsored, status, approved_by, approved_at)
+         values ('sponsored', 'Ad', 'ad-approved-no-sponsor', $1, true, 'approved', $1, now())`,
         [u.id],
       ),
     ).rejects.toThrow(/posts_sponsor_required/);

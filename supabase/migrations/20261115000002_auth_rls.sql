@@ -402,12 +402,26 @@ create policy tags_manage on public.tags for all to authenticated
 -- posts
 create policy posts_select_published on public.posts for select to anon, authenticated
   using (status = 'published' and published_at <= now());
+-- Ownership is checked inline (not via can_view_post_internal) so the policy also works for
+-- INSERT ... RETURNING, where a lookup query cannot yet see the row being inserted.
 create policy posts_select_internal on public.posts for select to authenticated
-  using (public.can_view_post_internal(id));
+  using (
+    public.staff_at_least('editor')
+    or (author_id = (select auth.uid()) and public.staff_at_least('writer'))
+  );
 create policy posts_insert on public.posts for insert to authenticated
   with check (author_id = (select auth.uid()) and public.staff_at_least('writer'));
 create policy posts_update on public.posts for update to authenticated
-  using (public.can_edit_post(id)) with check (public.can_edit_post(id));
+  using (
+    public.staff_at_least('editor')
+    or (author_id = (select auth.uid()) and status in ('draft', 'changes_requested')
+        and public.staff_at_least('writer'))
+  )
+  with check (
+    public.staff_at_least('editor')
+    or (author_id = (select auth.uid()) and status in ('draft', 'changes_requested')
+        and public.staff_at_least('writer'))
+  );
 create policy posts_delete on public.posts for delete to authenticated
   using (
     public.staff_at_least('admin')

@@ -167,6 +167,11 @@ export async function seedDevData(pg: PGlite): Promise<void> {
     ["admin@example.com", JSON.stringify({ full_name: "Dev Admin" })],
   );
   await pg.query("update public.users set role = 'admin' where id = $1", [admin.rows[0]!.id]);
+  // A plain reader account, to check that non-staff can't use Studio.
+  await pg.query("insert into auth.users (email, raw_user_meta_data) values ($1, $2)", [
+    "reader@example.com",
+    JSON.stringify({ full_name: "Sample Reader" }),
+  ]);
 
   const catIds: Record<string, string> = {};
   for (const [i, [slug, name, description]] of CATEGORIES.entries()) {

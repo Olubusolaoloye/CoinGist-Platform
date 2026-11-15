@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "dev:local": "tsx watch src/dev.ts",
-    "start:local": "tsx src/dev.ts"
+    "start:local": "tsx src/dev.ts",
+    "job:publish-scheduled": "tsx --env-file-if-exists=../../.env src/jobs/publish-scheduled.ts"
   },
   "dependencies": {
     "@coingist/db": "workspace:*",

@@ -88,7 +88,7 @@ describe("http hardening", () => {
     expect(bad.headers.get("access-control-allow-origin")).toBeNull();
   });
 
-  it("rate limits per caller", async () => {
+  it("throttles failed auth per IP and signed-in callers per user", async () => {
     const limited = await setup({ rateLimit: { windowMs: 60_000, max: 2 } });
     const headers = { "x-forwarded-for": "203.0.113.9", authorization: "Bearer bogus" };
     expect((await limited.app.request("/v1/me", { headers })).status).toBe(401);
@@ -96,6 +96,15 @@ describe("http hardening", () => {
     const third = await limited.app.request("/v1/me", { headers });
     expect(third.status).toBe(429);
     expect(third.headers.get("retry-after")).toBeTruthy();
+    // Signed-in callers are limited per user, not per (shared) IP: max 2 → per-user 6.
+    const u1 = await limited.t.createUser({ role: "writer" });
+    const u2 = await limited.t.createUser({ role: "writer" });
+    const shared = { "x-forwarded-for": "198.51.100.7" };
+    for (let i = 0; i < 6; i++) {
+      expect((await limited.app.request("/v1/me", { headers: { ...shared, ...bearer(await tokenFor(u1)) } })).status).toBe(200);
+    }
+    expect((await limited.app.request("/v1/me", { headers: { ...shared, ...bearer(await tokenFor(u1)) } })).status).toBe(429);
+    expect((await limited.app.request("/v1/me", { headers: { ...shared, ...bearer(await tokenFor(u2)) } })).status).toBe(200);
     // A different client is unaffected.
     const other = await limited.app.request("/v1/me", { headers: { "x-forwarded-for": "198.51.100.1" } });
     expect(other.status).toBe(401);
