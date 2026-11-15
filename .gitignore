@@ -12,4 +12,4 @@ test-results
 playwright-report
 packages/db/dev/sql.generated.ts
 .netlify
-apps/web/netlify/functions/
+apps/web/netlify/functions/api.mjs
