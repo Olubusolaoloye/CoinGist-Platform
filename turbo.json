@@ -28,7 +28,10 @@
     "lint": {},
     "dev:local": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": [
+        "STUDIO_ALLOWED_ACTION_ORIGINS"
+      ]
     }
   }
 }

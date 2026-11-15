@@ -15,7 +15,7 @@ import { BottomNav } from "./components/BottomNav";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
-import { siteConfig } from "./lib/config.server";
+import { isDemo, siteConfig } from "./lib/config.server";
 import { readTheme } from "./lib/theme.server";
 import "./app.css";
 
@@ -29,7 +29,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const site = siteConfig();
   // Navigation must not take the whole site down if the API hiccups.
   const categories = await api.listCategories().catch(() => []);
-  return data({ site, categories, theme: readTheme(request) });
+  return data({ site, categories, theme: readTheme(request), demo: isDemo() });
 }
 
 // Font face is declared inline so its URL comes from the build (hashed, cacheable).
@@ -55,6 +55,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         >
           Skip to content
         </a>
+        {root?.demo ? (
+          <p className="bg-gist px-4 py-2 text-center text-sm font-semibold text-gist-ink">
+            Preview with fictional sample content. These aren't real stories.
+          </p>
+        ) : null}
         <SiteHeader categories={root?.categories ?? []} theme={theme} />
         <div id="main" tabIndex={-1} className="outline-none">
           {children}

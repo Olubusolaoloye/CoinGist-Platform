@@ -15,6 +15,8 @@ function applyDocumentHeaders(headers: Headers, status: number) {
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Frame-Options", "DENY");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
+  // Preview deploys carry fake stories: keep them out of search engines.
+  if (process.env["DEMO_MODE"] === "true") headers.set("X-Robots-Tag", "noindex, nofollow");
 }
 
 export default function handleRequest(
