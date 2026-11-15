@@ -9,19 +9,26 @@ Web3/crypto news and gist platform with an African lens. See `CLAUDE.md` for pro
 | `apps/web` | Public site: React Router v7 (framework mode, SSR) + Tailwind |
 | `apps/studio` | Writer/editor/admin dashboard (SSR, `noindex`) |
 | `apps/api` | Hono REST API: auth, role/permission/2FA guards, admin routes |
-| `packages/types` | Shared enums, roles, permissions, workflow rules, zod schemas |
-| `packages/db` | Database interface, Postgres driver, repositories, PGlite test harness |
+| `packages/types` | Shared enums, roles, permissions, workflow rules, content types, zod schemas |
+| `packages/db` | Database interface, Postgres driver, repositories, PGlite dev/test database, seed data |
+| `packages/seo` | Meta/Open Graph/X tags, canonical URLs, JSON-LD (NewsArticle, BreadcrumbList, ProfilePage) |
+| `packages/ui` | Shared React: the allowlist-based rich text renderer (Tiptap JSON → React) |
 | `supabase/migrations` | SQL schema, workflow functions, RLS |
 
 ## Getting started
 
 ```bash
 pnpm install
-pnpm test        # all unit + DB + API tests (no Postgres needed: uses PGlite)
+pnpm dev:local   # API on in-memory Postgres with sample content (:8787) + public site (:5173)
+pnpm test        # unit + DB + API tests (no Postgres needed: uses PGlite)
+pnpm test:e2e    # Playwright: key flows, SEO tags, axe WCAG AA, mobile + desktop
 pnpm typecheck
 pnpm build
-pnpm dev         # web :5173, studio :5174, api :8787 (api needs .env)
+pnpm dev         # against real services: web :5173, studio :5174, api :8787 (needs .env)
 ```
+
+`dev:local` needs no accounts or secrets. Its data resets on every start. The sample
+people, sponsors and stories in `packages/db/dev/seed.ts` are fictional placeholders.
 
 Copy `.env.example` to `.env` once a Supabase project exists.
 
@@ -39,6 +46,26 @@ Copy `.env.example` to `.env` once a Supabase project exists.
   requires a human approver before anything is approved, scheduled or published. Editors can't
   approve their own posts; admins can, and it is audited.
 - **Audit log:** append-only (trigger blocks update/delete); role/status/post transitions are logged.
+
+## Public site (step 2)
+
+- **Rendering:** every page is server-rendered by React Router v7. Loaders call the API's
+  `/v1/public/*` endpoints, which query as `anon` so RLS only ever returns live posts.
+- **Routes:** `/`, `/news`, `/gist`, `/learn`, `/africa`, `/category/:slug`, `/tag/:slug`,
+  `/author/:slug`, `/:section/:slug`. A story requested under the wrong section 301s to its one
+  canonical URL; `/category/africa` 301s to `/africa`.
+- **SEO:** canonical URLs, Open Graph and X cards, NewsArticle + BreadcrumbList JSON-LD on every
+  post, ProfilePage on authors, `noindex` on errors and thin tag pages.
+- **Caching:** pages send `s-maxage=60, stale-while-revalidate=300` for the CDN; any 4xx/5xx is
+  `no-store` (see `apps/web/app/entry.server.tsx`).
+- **Rich text:** post bodies are Tiptap JSON rendered through an allowlist (`packages/ui`). There is
+  no `dangerouslySetInnerHTML`, unsafe URLs are dropped, and outbound links get `nofollow` (or
+  `sponsored` on sponsored posts).
+- **Design:** adire indigo and danfo yellow, defined as CSS variables in `apps/web/app/app.css`;
+  dark mode swaps the variables. The theme choice is a cookie, so the server renders the right
+  theme with no flash, and the toggle works without JavaScript.
+- **Measured (local, Lighthouse mobile):** performance 97–98, accessibility/best practices/SEO
+  100, CLS 0, LCP about 2.2s on simulated slow 4G.
 
 ## Swapping the database (e.g. Convex)
 

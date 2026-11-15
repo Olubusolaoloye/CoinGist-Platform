@@ -1,12 +1,7 @@
-import { readdir, readFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { PGlite } from "@electric-sql/pglite";
+import type { PGlite } from "@electric-sql/pglite";
 import type { Role } from "@coingist/types";
-import { createDatabase, type Database, type SessionClaims } from "../src/database.js";
-
-const here = dirname(fileURLToPath(import.meta.url));
-const MIGRATIONS_DIR = join(here, "../../../supabase/migrations");
+import type { Database, SessionClaims } from "../src/database.js";
+import { createPgliteDatabase } from "../src/pglite.js";
 
 export interface TestDb {
   /** Superuser connection: bypasses RLS and grants. Use only for fixtures and assertions. */
@@ -28,25 +23,7 @@ export interface TestUser {
 
 /** Fresh in-memory Postgres with the Supabase shim and every migration applied. */
 export async function createTestDb(): Promise<TestDb> {
-  const pg = new PGlite();
-  await pg.exec(await readFile(join(here, "supabase-shim.sql"), "utf8"));
-
-  const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
-  for (const file of files) {
-    try {
-      await pg.exec(await readFile(join(MIGRATIONS_DIR, file), "utf8"));
-    } catch (err) {
-      throw new Error(`migration ${file} failed: ${(err as Error).message}`);
-    }
-  }
-
-  const db = createDatabase(
-    (fn) =>
-      pg.transaction(async (tx) =>
-        fn({ query: async (sql, params) => (await tx.query(sql, params)).rows as never[] }),
-      ),
-    async () => {},
-  );
+  const { pg, db } = await createPgliteDatabase();
 
   let n = 0;
   return {
@@ -71,7 +48,7 @@ export async function createTestDb(): Promise<TestDb> {
         claimsNoMfa: { sub: id, email: mail, aal: "aal1" },
       };
     },
-    close: () => pg.close(),
+    close: () => db.close(),
   };
 }
 

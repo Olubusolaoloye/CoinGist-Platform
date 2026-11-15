@@ -1,0 +1,217 @@
+import type {
+  AuthorProfile,
+  Category,
+  Paginated,
+  PostDetail,
+  PostSummary,
+  PostType,
+  RichTextDoc,
+  TagRef,
+} from "@coingist/types";
+import type { Database, Queryable } from "./database.js";
+import { mapDbError } from "./errors.js";
+
+export interface ListPostsQuery {
+  type?: PostType | undefined;
+  categorySlug?: string | undefined;
+  tagSlug?: string | undefined;
+  authorSlug?: string | undefined;
+  excludeId?: string | undefined;
+  page: number;
+  pageSize: number;
+}
+
+/** Read-only public content. Every query runs as `anon`, so RLS only ever exposes live posts. */
+export interface ContentRepository {
+  listPosts(q: ListPostsQuery): Promise<Paginated<PostSummary>>;
+  getPost(slug: string): Promise<PostDetail | null>;
+  listCategories(): Promise<Category[]>;
+  getCategory(slug: string): Promise<Category | null>;
+  getTag(slug: string): Promise<TagRef | null>;
+  getAuthor(slug: string): Promise<AuthorProfile | null>;
+}
+
+type SummaryRow = {
+  id: string;
+  type: PostType;
+  slug: string;
+  title: string;
+  excerpt: string | null;
+  hero_image_url: string | null;
+  hero_image_alt: string | null;
+  published_at: Date | string;
+  updated_at: Date | string;
+  is_sponsored: boolean;
+  category_slug: string | null;
+  category_name: string | null;
+  author_slug: string | null;
+  author_name: string | null;
+  author_avatar: string | null;
+  sponsor_name: string | null;
+  total?: number;
+};
+
+type DetailRow = SummaryRow & {
+  summary_bullets: string[];
+  body_json: RichTextDoc;
+  seo_title: string | null;
+  seo_description: string | null;
+  canonical: string | null;
+  ai_assisted: boolean;
+  sponsor_website: string | null;
+  tags: TagRef[] | null;
+};
+
+const iso = (d: Date | string) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString());
+
+const SUMMARY_SELECT = `
+  p.id, p.type, p.slug, p.title, p.excerpt, p.hero_image_url, p.hero_image_alt,
+  p.published_at, p.updated_at, p.is_sponsored,
+  c.slug as category_slug, c.name as category_name,
+  a.slug as author_slug, a.name as author_name, a.avatar_url as author_avatar,
+  s.name as sponsor_name`;
+
+const SUMMARY_FROM = `
+  from public.posts p
+  left join public.categories c on c.id = p.category_id
+  left join public.author_directory a on a.user_id = p.author_id
+  left join public.sponsor_directory s on s.id = p.sponsor_id`;
+
+function toSummary(r: SummaryRow): PostSummary {
+  return {
+    id: r.id,
+    type: r.type,
+    slug: r.slug,
+    title: r.title,
+    excerpt: r.excerpt,
+    heroImage: r.hero_image_url ? { url: r.hero_image_url, alt: r.hero_image_alt ?? "" } : null,
+    category: r.category_slug ? { slug: r.category_slug, name: r.category_name! } : null,
+    author: r.author_slug
+      ? { slug: r.author_slug, name: r.author_name ?? r.author_slug, avatarUrl: r.author_avatar }
+      : null,
+    publishedAt: iso(r.published_at),
+    updatedAt: iso(r.updated_at),
+    isSponsored: r.is_sponsored,
+    sponsorName: r.sponsor_name,
+  };
+}
+
+export function createContentRepository(db: Database): ContentRepository {
+  const anon = <T>(fn: (q: Queryable) => Promise<T>) => db.asUser(null, fn).catch(mapDbError);
+
+  return {
+    listPosts: (q) =>
+      anon(async (sql) => {
+        const rows = await sql.query<SummaryRow>(
+          `select ${SUMMARY_SELECT}, count(*) over ()::int as total
+           ${SUMMARY_FROM}
+           where p.status = 'published' and p.published_at <= now()
+             and ($1::public.post_type is null or p.type = $1)
+             and ($2::text is null or c.slug = $2)
+             and ($3::text is null or a.slug = $3)
+             and ($4::text is null or exists (
+               select 1 from public.post_tags pt join public.tags t on t.id = pt.tag_id
+               where pt.post_id = p.id and t.slug = $4))
+             and ($5::uuid is null or p.id <> $5)
+           order by p.published_at desc, p.id desc
+           limit $6 offset $7`,
+          [
+            q.type ?? null,
+            q.categorySlug ?? null,
+            q.authorSlug ?? null,
+            q.tagSlug ?? null,
+            q.excludeId ?? null,
+            q.pageSize,
+            (q.page - 1) * q.pageSize,
+          ],
+        );
+        return {
+          items: rows.map(toSummary),
+          page: q.page,
+          pageSize: q.pageSize,
+          total: rows[0]?.total ?? 0,
+        };
+      }),
+
+    getPost: (slug) =>
+      anon(async (sql) => {
+        const rows = await sql.query<DetailRow>(
+          `select ${SUMMARY_SELECT},
+             p.summary_bullets, p.body_json, p.seo_title, p.seo_description, p.canonical,
+             p.ai_assisted, s.website as sponsor_website,
+             (select coalesce(json_agg(json_build_object('slug', t.slug, 'name', t.name)
+                       order by t.name), '[]'::json)
+              from public.post_tags pt join public.tags t on t.id = pt.tag_id
+              where pt.post_id = p.id) as tags
+           ${SUMMARY_FROM}
+           where p.slug = $1 and p.status = 'published' and p.published_at <= now()`,
+          [slug],
+        );
+        const r = rows[0];
+        if (!r) return null;
+        return {
+          ...toSummary(r),
+          summaryBullets: r.summary_bullets,
+          body: r.body_json,
+          tags: r.tags ?? [],
+          seoTitle: r.seo_title,
+          seoDescription: r.seo_description,
+          canonical: r.canonical,
+          aiAssisted: r.ai_assisted,
+          sponsor: r.sponsor_name ? { name: r.sponsor_name, website: r.sponsor_website } : null,
+        };
+      }),
+
+    listCategories: () =>
+      anon((sql) =>
+        sql.query<Category>(
+          `select slug, name, description from public.categories
+           where parent_id is null order by sort_order, name`,
+        ),
+      ),
+
+    getCategory: (slug) =>
+      anon(async (sql) => {
+        const rows = await sql.query<Category>(
+          "select slug, name, description from public.categories where slug = $1",
+          [slug],
+        );
+        return rows[0] ?? null;
+      }),
+
+    getTag: (slug) =>
+      anon(async (sql) => {
+        const rows = await sql.query<TagRef>("select slug, name from public.tags where slug = $1", [
+          slug,
+        ]);
+        return rows[0] ?? null;
+      }),
+
+    getAuthor: (slug) =>
+      anon(async (sql) => {
+        const rows = await sql.query<{
+          slug: string;
+          name: string | null;
+          avatar_url: string | null;
+          bio: string | null;
+          socials: Record<string, string>;
+          expertise: string[];
+        }>(
+          `select slug, name, avatar_url, bio, socials, expertise
+           from public.author_directory where slug = $1`,
+          [slug],
+        );
+        const r = rows[0];
+        return r
+          ? {
+              slug: r.slug,
+              name: r.name ?? r.slug,
+              avatarUrl: r.avatar_url,
+              bio: r.bio,
+              socials: r.socials,
+              expertise: r.expertise,
+            }
+          : null;
+      }),
+  };
+}

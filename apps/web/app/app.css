@@ -1,1 +1,157 @@
 @import "tailwindcss";
+
+/* ── Design tokens ────────────────────────────────────────────────────────
+   Adire indigo + danfo yellow. Colours are CSS variables so dark mode is a
+   variable swap, not a second set of classes. */
+:root {
+  --paper: #f6f7fb;
+  --surface: #ffffff;
+  --ink: #1a1c2e;
+  --muted: #555a6e;
+  --line: #dadce8;
+  --link: #3b44a8;
+  --gist: #ffc72c;
+  --gist-ink: #1b1f5e;
+  color-scheme: light;
+}
+:root.dark {
+  --paper: #0e1030;
+  --surface: #14173d;
+  --ink: #e9eaf6;
+  --muted: #a9adc8;
+  --line: #2b2f63;
+  --link: #b4b9ff;
+  --gist: #ffc72c;
+  --gist-ink: #14163f;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --paper: #0e1030;
+    --surface: #14173d;
+    --ink: #e9eaf6;
+    --muted: #a9adc8;
+    --line: #2b2f63;
+    --link: #b4b9ff;
+    --gist: #ffc72c;
+    --gist-ink: #14163f;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-link: var(--link);
+  --color-gist: var(--gist);
+  --color-gist-ink: var(--gist-ink);
+  --font-display: "Bricolage Grotesque", "Bricolage Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Metric-matched fallback keeps headline reflow small while the display face loads. */
+@font-face {
+  font-family: "Bricolage Fallback";
+  src: local("Arial");
+  size-adjust: 96%;
+  ascent-override: 96%;
+  descent-override: 26%;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
+:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.gist-box :focus-visible {
+  outline-color: var(--gist-ink);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Placeholder for posts without art: an adire-style resist-dye grid in the theme's colours. */
+.placeholder-art {
+  background-color: var(--line);
+  background-image: radial-gradient(circle at 50% 50%, var(--paper) 0 18%, transparent 19%),
+    linear-gradient(45deg, transparent 46%, var(--paper) 47% 53%, transparent 54%);
+  background-size: 28px 28px;
+  opacity: 0.8;
+}
+
+/* ── Article body ─────────────────────────────────────────────────────── */
+.article-body {
+  font-size: 1.125rem;
+  line-height: 1.7;
+  max-width: 68ch;
+}
+.article-body > * + * {
+  margin-top: 1.15em;
+}
+.article-body h2,
+.article-body h3,
+.article-body h4 {
+  font-family: var(--font-display);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  margin-top: 1.8em;
+}
+.article-body h2 { font-size: 1.5rem; }
+.article-body h3 { font-size: 1.25rem; }
+.article-body h4 { font-size: 1.1rem; }
+.article-body a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+.article-body a:hover { text-decoration-thickness: 2px; }
+.article-body ul { list-style: disc; padding-left: 1.25em; }
+.article-body ol { list-style: decimal; padding-left: 1.4em; }
+.article-body li + li { margin-top: 0.35em; }
+.article-body li > p { margin: 0; }
+.article-body blockquote {
+  border-left: 4px solid var(--gist);
+  padding: 0.1em 0 0.1em 1em;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.article-body code {
+  font-size: 0.9em;
+  background: var(--line);
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.article-body pre {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1em;
+}
+.article-body pre code { background: none; padding: 0; }
+.article-body figure img { width: 100%; height: auto; border-radius: 6px; }
+.article-body figcaption { margin-top: 0.5em; font-size: 0.875rem; color: var(--muted); }
+.article-body hr { border-color: var(--line); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}

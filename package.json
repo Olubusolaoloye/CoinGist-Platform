@@ -11,7 +11,9 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",
-    "test:db": "pnpm --filter @coingist/db test"
+    "test:db": "pnpm --filter @coingist/db test",
+    "test:e2e": "pnpm --filter @coingist/web test:e2e",
+    "dev:local": "turbo run dev:local --filter=@coingist/api --filter=@coingist/web"
   },
   "devDependencies": {
     "turbo": "^2.5.0",

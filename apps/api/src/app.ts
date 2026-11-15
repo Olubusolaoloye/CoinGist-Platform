@@ -8,6 +8,7 @@ import type { AppEnv } from "./context.js";
 import { authenticate, rateLimit } from "./middleware.js";
 import { adminRoutes } from "./routes/admin.js";
 import { meRoutes } from "./routes/me.js";
+import { publicRoutes } from "./routes/public.js";
 
 export interface AppDeps {
   repos: Repositories;
@@ -46,8 +47,12 @@ export function createApp(deps: AppDeps) {
 
   app.get("/health", (c) => c.json({ ok: true }));
 
-  app.use("/v1/*", rateLimit(deps.rateLimit ?? { windowMs: 60_000, max: 120 }));
+  // Public reads are exempt from the per-IP limiter: the web SSR server calls them from one IP,
+  // and they are cached at the CDN. Cloudflare rules protect them in production.
+  const limiter = rateLimit(deps.rateLimit ?? { windowMs: 60_000, max: 120 });
+  app.use("/v1/*", (c, next) => (c.req.path.startsWith("/v1/public/") ? next() : limiter(c, next)));
   app.use("/v1/*", authenticate(deps.verifyToken));
+  app.route("/v1/public", publicRoutes);
   app.route("/v1/me", meRoutes);
   app.route("/v1/admin", adminRoutes);
 
