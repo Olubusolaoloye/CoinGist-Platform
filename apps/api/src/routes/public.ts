@@ -23,7 +23,7 @@ const notFound = { error: { code: "not_found", message: "Not found" } } as const
 export const publicRoutes = new Hono<AppEnv>()
   .use("*", async (c, next) => {
     await next();
-    if (c.res.status === 200) c.header("Cache-Control", CACHE);
+    if (c.req.method === "GET" && c.res.status === 200) c.header("Cache-Control", CACHE);
   })
   .get("/posts", zValidator("query", ListQuery), async (c) => {
     const q = c.req.valid("query");

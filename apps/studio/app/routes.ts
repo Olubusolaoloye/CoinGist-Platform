@@ -12,6 +12,7 @@ export default [
     route("posts/:id", "routes/app.posts.$id.tsx"),
     route("review", "routes/app.review.tsx"),
     route("audit", "routes/app.audit.tsx"),
+    route("subscribers", "routes/app.subscribers.tsx"),
   ]),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

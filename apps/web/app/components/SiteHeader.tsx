@@ -64,6 +64,9 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
                 </li>
               ))}
             </ul>
+            <Link to="/newsletter" className="mt-2 block rounded-md bg-gist px-2 py-2 font-semibold text-gist-ink">
+              Get the newsletter
+            </Link>
             <p className="mt-4 text-sm font-semibold text-muted">Topics</p>
             <ul className="mt-1 grid grid-cols-2 gap-1">
               {strip.map((c) => (

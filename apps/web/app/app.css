@@ -12,6 +12,7 @@
   --link: #3b44a8;
   --gist: #ffc72c;
   --gist-ink: #1b1f5e;
+  --bad: #b3261e;
   color-scheme: light;
 }
 :root.dark {
@@ -23,6 +24,7 @@
   --link: #b4b9ff;
   --gist: #ffc72c;
   --gist-ink: #14163f;
+  --bad: #ff9b93;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -48,6 +50,7 @@
   --color-link: var(--link);
   --color-gist: var(--gist);
   --color-gist-ink: var(--gist-ink);
+  --color-bad: var(--bad);
   --font-display: "Bricolage Grotesque", "Bricolage Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }

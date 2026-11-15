@@ -65,7 +65,7 @@ test.describe("article", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
     await page.goto(ARTICLE);
     await page.getByRole("button", { name: "Copy link" }).click();
-    await expect(page.getByRole("status")).toHaveText("Link copied.");
+    await expect(page.getByRole("status").filter({ hasText: "Link copied." })).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(`https://coingist.test${ARTICLE}`);
   });
 
@@ -204,9 +204,57 @@ test.describe("theme", () => {
   });
 });
 
+test.describe("newsletter", () => {
+  test("signs up for both newsletters on the newsletter page", async ({ page }) => {
+    await page.goto("/newsletter");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Get the gist in your inbox");
+    await page.getByRole("checkbox", { name: /The Weekly Wrap/ }).check();
+    await page.getByLabel("Email address").fill(`page-${Date.now()}@example.com`);
+    await page.getByRole("button", { name: "Subscribe" }).click();
+    await expect(page.getByRole("status").filter({ hasText: /./ })).toHaveText("Check your inbox to confirm your subscription.");
+    // The footer form is hidden here so there's only one email field.
+    await expect(page.getByLabel("Email address")).toHaveCount(1);
+  });
+
+  test("footer form subscribes in place and clears the field", async ({ page }) => {
+    await page.goto("/learn");
+    const footer = page.getByRole("contentinfo");
+    await footer.getByLabel("Email address").fill(`footer-${Date.now()}@example.com`);
+    await footer.getByRole("button", { name: "Subscribe" }).click();
+    await expect(footer.getByRole("status")).toHaveText("Check your inbox to confirm your subscription.");
+    await expect(footer.getByLabel("Email address")).toHaveValue("");
+    await expect(page).toHaveURL("/learn");
+  });
+
+  test("article form shows validation errors", async ({ page }) => {
+    await page.goto(ARTICLE);
+    const box = page.getByRole("region", { name: /Liked this/ });
+    await box.getByLabel("Email address").fill("nope@x");
+    await box.getByRole("button", { name: "Subscribe" }).click();
+    await expect(box.getByRole("status")).toHaveText("Enter a valid email address.");
+  });
+
+  test("works without JavaScript", async ({ browser }) => {
+    const ctx = await browser.newContext({ javaScriptEnabled: false });
+    const page = await ctx.newPage();
+    await page.goto("/gist");
+    const footer = page.getByRole("contentinfo");
+    await footer.getByLabel("Email address").fill(`nojs-${Date.now()}@example.com`);
+    await footer.getByRole("button", { name: "Subscribe" }).click();
+    await expect(page).toHaveURL("/newsletter");
+    await expect(page.getByText("Check your inbox to confirm your subscription.")).toBeVisible();
+    await ctx.close();
+  });
+
+  test("form responses are never cached", async ({ request }) => {
+    const res = await request.post("/newsletter", { form: { email: `cache-${Date.now()}@example.com`, lists: "daily-gist", source: "footer" } });
+    expect(res.headers()["cache-control"]).toBe("no-store");
+  });
+});
+
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);

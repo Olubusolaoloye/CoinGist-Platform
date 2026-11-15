@@ -94,6 +94,32 @@ Not yet: image upload (needs Supabase Storage), sponsor selection (step 6), inli
 anchored to text, editorial calendar, writer stats, the outbound scam-link scanner, and
 concurrent-edit protection (today the last save wins).
 
+## Newsletter (step 4)
+
+- **Signup:** the `/newsletter` page offers the Daily Gist and the Weekly Wrap; every page has a
+  footer form and every article ends with one. Forms work without JavaScript, and the web server
+  limits signups per visitor IP.
+- **Privacy:** the API always answers "check your inbox", so the form can't reveal who's
+  subscribed. A hidden honeypot field drops bots, and the same address can't trigger another
+  confirmation email within 10 minutes. We store the email, chosen lists, source and consent time.
+- **Sync:** each signup is saved first, then sent to the newsletter tool. If the tool is down, the
+  reader still sees success; the row is marked failed and `pnpm --filter @coingist/api
+  job:sync-newsletter` retries it (run every few minutes; the local API does it every minute).
+- **Webhooks:** `POST /v1/webhooks/newsletter` takes confirmations, unsubscribes and bounces.
+  Requests must carry a valid Svix signature (Beehiiv delivers webhooks through Svix); stale
+  timestamps are rejected.
+- **Studio:** admins get a Subscribers page with counts per newsletter, a filterable list and
+  "Retry now" for failed syncs.
+- **Locally:** the dev provider logs instead of emailing. An address containing `+fail` simulates
+  an outage.
+
+**Check against Beehiiv's docs before launch** (they couldn't be reached from the build
+environment): the optional request fields (`reactivate_existing`, `send_welcome_email`, `utm_*`,
+`custom_fields`), the webhook event names and payload fields (`apps/api/src/newsletter/webhook.ts`
+accepts a few shapes), and that a `lists` custom field exists in the publication so Beehiiv
+segments can target each newsletter. Double opt-in is a Beehiiv publication setting; turn it on.
+Webhooks need a paid Beehiiv plan.
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.

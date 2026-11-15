@@ -3,6 +3,7 @@ import { createPgDatabase, createPgRepositories } from "@coingist/db";
 import { createApp } from "./app.js";
 import { createTokenVerifier } from "./auth.js";
 import { loadEnv } from "./env.js";
+import { newsletterProviderFromEnv } from "./newsletter/from-env.js";
 
 const env = loadEnv();
 const db = createPgDatabase(env.DATABASE_URL);
@@ -14,6 +15,8 @@ const app = createApp({
     jwtSecret: env.SUPABASE_JWT_SECRET,
   }),
   corsOrigins: env.CORS_ORIGINS,
+  newsletter: newsletterProviderFromEnv(env),
+  newsletterWebhookSecret: env.BEEHIIV_WEBHOOK_SECRET,
 });
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {

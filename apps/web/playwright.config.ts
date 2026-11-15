@@ -29,6 +29,8 @@ export default defineConfig({
         PORT: String(WEB_PORT),
         API_URL: `http://localhost:${API_PORT}`,
         SITE_URL: "https://coingist.test",
+        // Every test signs up from the same machine; the limiter has its own unit test.
+        NEWSLETTER_SIGNUPS_PER_10_MIN: "1000",
       },
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,

@@ -9,6 +9,7 @@ export default [
   route("category/:slug", "routes/category.tsx"),
   route("tag/:slug", "routes/tag.tsx"),
   route("author/:slug", "routes/author.tsx"),
+  route("newsletter", "routes/newsletter.tsx"),
   route("resources/theme", "routes/resources.theme.ts"),
   route(":section/:slug", "routes/article.tsx"),
   route("*", "routes/not-found.tsx"),

@@ -5,10 +5,12 @@ import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
 import { DomainError, type Repositories } from "@coingist/db";
 import type { TokenVerifier } from "./auth.js";
+import type { NewsletterProvider } from "./newsletter/provider.js";
 import type { AppEnv } from "./context.js";
 import { authenticate, authFailureLimit, rateLimit } from "./middleware.js";
 import { adminRoutes } from "./routes/admin.js";
 import { meRoutes } from "./routes/me.js";
+import { newsletterAdminRoutes, newsletterPublicRoutes, newsletterWebhookRoutes } from "./routes/newsletter.js";
 import { publicRoutes } from "./routes/public.js";
 import { studioRoutes } from "./routes/studio.js";
 
@@ -17,6 +19,9 @@ export interface AppDeps {
   verifyToken: TokenVerifier;
   corsOrigins: string[];
   rateLimit?: { windowMs: number; max: number };
+  newsletter: NewsletterProvider;
+  /** Svix signing secret for newsletter webhooks (whsec_...). */
+  newsletterWebhookSecret?: string | undefined;
 }
 
 const DOMAIN_STATUS = { forbidden: 403, not_found: 404, conflict: 409, invalid: 422 } as const;
@@ -64,6 +69,9 @@ export function createApp(deps: AppDeps) {
   app.use("/v1/*", authenticate(deps.verifyToken));
   app.use("/v1/*", unlessPublic(perCaller));
   app.route("/v1/public", publicRoutes);
+  app.route("/v1/public/newsletter", newsletterPublicRoutes(deps.newsletter));
+  app.route("/v1/webhooks", newsletterWebhookRoutes(deps.newsletterWebhookSecret));
+  app.route("/v1/admin/subscribers", newsletterAdminRoutes(deps.newsletter));
   app.route("/v1/me", meRoutes);
   app.route("/v1/admin", adminRoutes);
   app.route("/v1/studio", studioRoutes);

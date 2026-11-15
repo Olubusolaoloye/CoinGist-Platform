@@ -88,3 +88,28 @@ export const HTML_CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidat
 export function cached<T>(value: T) {
   return data(value, { headers: { "Cache-Control": HTML_CACHE } });
 }
+
+export type SubscribeResult = { ok: true; message: string } | { ok: false; message: string };
+
+/** Newsletter signup. Returns a message for the reader either way; never throws for user errors. */
+export async function subscribeToNewsletter(body: {
+  email: string;
+  lists: string[];
+  source: string;
+  website: string;
+}): Promise<SubscribeResult> {
+  try {
+    const res = await fetch(`${apiUrl()}/v1/public/newsletter/subscribe`, {
+      method: "POST",
+      headers: { "content-type": "application/json", accept: "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10_000),
+    });
+    const json = (await res.json().catch(() => ({}))) as { message?: string; error?: { message?: string } };
+    if (res.ok) return { ok: true, message: json.message ?? "Check your inbox to confirm your subscription." };
+    if (res.status === 400) return { ok: false, message: json.error?.message ?? "Check your email address and try again." };
+    return { ok: false, message: "We couldn't sign you up just now. Try again in a minute." };
+  } catch {
+    return { ok: false, message: "We couldn't sign you up just now. Try again in a minute." };
+  }
+}

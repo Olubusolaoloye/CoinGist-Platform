@@ -6,6 +6,7 @@ import type { Route } from "./+types/article";
 import { Breadcrumbs } from "~/components/Breadcrumbs";
 import { Disclaimer } from "~/components/Disclaimer";
 import { GistBox } from "~/components/GistBox";
+import { NewsletterSignup } from "~/components/NewsletterSignup";
 import { StoryList } from "~/components/PostCard";
 import { PostImage } from "~/components/PostImage";
 import { ShareBar } from "~/components/ShareBar";
@@ -163,6 +164,14 @@ export default function Article({ loaderData }: Route.ComponentProps) {
           <ShareBar url={url} title={post.title} />
         </div>
         <Disclaimer className="mt-4" />
+        <div className="mt-10">
+          <NewsletterSignup
+            source="article"
+            tone="boxed"
+            heading="Liked this? Get the Daily Gist"
+            blurb="The five crypto stories that matter today, in a two-minute read. Every weekday morning."
+          />
+        </div>
       </article>
 
       {related.length > 0 && post.category ? (

@@ -223,6 +223,31 @@ test.describe("editor", () => {
 });
 
 test.describe("admin", () => {
+  test("subscribers page shows signups and retries failed syncs", async ({ page, request }) => {
+    // A signup the (dev) newsletter tool rejects: "+fail" addresses simulate an outage.
+    const res = await request.post("http://localhost:8789/v1/public/newsletter/subscribe", {
+      data: { email: `outage+fail-${Date.now()}@example.com`, source: "footer" },
+    });
+    expect(res.status()).toBe(202);
+
+    await signIn(page, ADMIN);
+    await page.getByRole("link", { name: "Subscribers" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Subscribers");
+    await expect(page.getByRole("term").filter({ hasText: "The Daily Gist" })).toBeVisible();
+    await expect(page.getByRole("alert")).toContainText("didn't reach the newsletter tool");
+    await page.getByRole("button", { name: "Retry now" }).click();
+    await expect(page.getByRole("status")).toContainText("The rest still failed");
+    await page.getByRole("link", { name: "Show them" }).click();
+    await expect(page.getByRole("cell", { name: /Failed: Simulated newsletter outage/ }).first()).toBeVisible();
+  });
+
+  test("editors can't see subscribers", async ({ page }) => {
+    await signIn(page, EDITOR);
+    await expect(page.getByRole("link", { name: "Subscribers" })).toHaveCount(0);
+    await page.goto("/subscribers");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("You don't have access to this");
+  });
+
   test("audit log shows workflow history", async ({ page }) => {
     await signIn(page, ADMIN);
     await page.getByRole("link", { name: "Audit log" }).click();

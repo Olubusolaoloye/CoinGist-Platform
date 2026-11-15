@@ -1,6 +1,7 @@
 import type { AuditLog, Role, User, UserStatus } from "@coingist/types";
 import { createContentRepository, type ContentRepository } from "./content.js";
 import type { Database, SessionClaims } from "./database.js";
+import { createNewsletterRepository, type NewsletterRepository } from "./newsletter.js";
 import { createStudioRepository, type StudioRepository } from "./studio.js";
 import { mapDbError } from "./errors.js";
 
@@ -13,6 +14,7 @@ import { mapDbError } from "./errors.js";
  */
 export interface Repositories {
   content: ContentRepository;
+  newsletter: NewsletterRepository;
   studio: StudioRepository;
   users: {
     findById(id: string): Promise<User | null>;
@@ -79,6 +81,7 @@ export function createPgRepositories(db: Database): Repositories {
 
   return {
     content: createContentRepository(db),
+    newsletter: createNewsletterRepository(db),
     studio: createStudioRepository(db),
     users: {
       findById: (id) =>

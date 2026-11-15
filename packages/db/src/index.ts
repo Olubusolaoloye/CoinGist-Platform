@@ -1,6 +1,7 @@
 export * from "./content.js";
 export * from "./database.js";
 export * from "./errors.js";
+export * from "./newsletter.js";
 export * from "./pg.js";
 export * from "./repositories.js";
 export * from "./studio.js";

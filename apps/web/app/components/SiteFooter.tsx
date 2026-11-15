@@ -1,10 +1,18 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 import type { Category } from "@coingist/types";
+import { NewsletterSignup } from "./NewsletterSignup";
 import { Wordmark } from "./Wordmark";
 
 export function SiteFooter({ categories }: { categories: Category[] }) {
+  // The newsletter page has its own full form; don't repeat it.
+  const onNewsletterPage = useLocation().pathname === "/newsletter";
   return (
     <footer className="mt-16 border-t border-line bg-surface">
+      {onNewsletterPage ? null : (
+        <div className="mx-auto max-w-6xl border-b border-line px-4 py-10">
+          <NewsletterSignup source="footer" />
+        </div>
+      )}
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 md:grid-cols-[1.4fr_1fr_1fr]">
         <div>
           <Wordmark />
@@ -24,6 +32,7 @@ export function SiteFooter({ categories }: { categories: Category[] }) {
             <li><Link to="/gist" className="hover:underline">Gist</Link></li>
             <li><Link to="/learn" className="hover:underline">Learn</Link></li>
             <li><Link to="/africa" className="hover:underline">Africa</Link></li>
+            <li><Link to="/newsletter" className="hover:underline">Newsletters</Link></li>
           </ul>
         </nav>
         <nav aria-label="Topics in footer">
