@@ -1,0 +1,25 @@
+# Netlify deploy of the public site (apps/web).
+# DEMO: the API runs as a function on in-memory sample data (source: apps/web/netlify/functions-src/api.mts).
+[build]
+  base = "apps/web"
+  # The API function is pre-bundled into one file (esbuild); Netlify's own bundler can't see
+  # dependencies that live in other workspace packages.
+  command = "pnpm --filter @coingist/db embed-sql && pnpm build:functions && DEPLOY_TARGET=netlify pnpm build"
+  publish = "build/client"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.28.0"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  # Ships its WebAssembly files from node_modules instead of being bundled.
+  external_node_modules = ["@electric-sql/pglite"]
+
+# Demo API. Rewrites beat the React Router function's catch-all.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true

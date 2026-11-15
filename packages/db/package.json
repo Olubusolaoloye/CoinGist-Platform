@@ -7,11 +7,15 @@
     ".": "./src/index.ts",
     "./pglite": "./src/pglite.ts",
     "./dev-seed": "./dev/seed.ts",
-    "./testing": "./test/harness.ts"
+    "./testing": "./test/harness.ts",
+    "./dev-sql": "./dev/sql.generated.ts",
+    "./pg": "./src/pg.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "embed-sql": "node scripts/embed-sql.mjs",
+    "postinstall": "node scripts/embed-sql.mjs"
   },
   "dependencies": {
     "@coingist/types": "workspace:*",

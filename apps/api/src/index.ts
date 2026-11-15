@@ -1,5 +1,6 @@
 import { serve } from "@hono/node-server";
-import { createPgDatabase, createPgRepositories } from "@coingist/db";
+import { createPgRepositories } from "@coingist/db";
+import { createPgDatabase } from "@coingist/db/pg";
 import { createApp } from "./app.js";
 import { createTokenVerifier } from "./auth.js";
 import { loadEnv } from "./env.js";

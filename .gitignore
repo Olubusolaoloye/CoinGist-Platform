@@ -10,3 +10,6 @@ coverage
 *.log
 test-results
 playwright-report
+packages/db/dev/sql.generated.ts
+.netlify
+apps/web/netlify/functions/

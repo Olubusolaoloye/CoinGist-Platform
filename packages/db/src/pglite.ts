@@ -8,12 +8,28 @@ const here = dirname(fileURLToPath(import.meta.url));
 const SHIM = join(here, "../dev/supabase-shim.sql");
 const MIGRATIONS_DIR = join(here, "../../../supabase/migrations");
 
+async function readSqlFiles() {
+  const names = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
+  return {
+    shim: await readFile(SHIM, "utf8"),
+    migrations: await Promise.all(
+      names.map(async (name) => ({ name, sql: await readFile(join(MIGRATIONS_DIR, name), "utf8") })),
+    ),
+  };
+}
+
 /**
  * In-process Postgres (WASM) for tests and local development without Supabase.
  * Applies a small Supabase stand-in (auth schema, API roles) and then every migration.
  * Never used in production.
  */
-export async function createPgliteDatabase(opts: { dataDir?: string } = {}): Promise<{
+export async function createPgliteDatabase(
+  opts: {
+    dataDir?: string;
+    /** SQL as strings instead of reading files (for serverless bundles). */
+    sql?: { shim: string; migrations: Array<{ name: string; sql: string }> };
+  } = {},
+): Promise<{
   pg: PGlite;
   db: Database;
   fresh: boolean;
@@ -25,13 +41,13 @@ export async function createPgliteDatabase(opts: { dataDir?: string } = {}): Pro
   const fresh = existing.rows[0]!.n === 0;
 
   if (fresh) {
-    await pg.exec(await readFile(SHIM, "utf8"));
-    const files = (await readdir(MIGRATIONS_DIR)).filter((f) => f.endsWith(".sql")).sort();
-    for (const file of files) {
+    const sql = opts.sql ?? (await readSqlFiles());
+    await pg.exec(sql.shim);
+    for (const m of sql.migrations) {
       try {
-        await pg.exec(await readFile(join(MIGRATIONS_DIR, file), "utf8"));
+        await pg.exec(m.sql);
       } catch (err) {
-        throw new Error(`migration ${file} failed: ${(err as Error).message}`);
+        throw new Error(`migration ${m.name} failed: ${(err as Error).message}`);
       }
     }
   }
