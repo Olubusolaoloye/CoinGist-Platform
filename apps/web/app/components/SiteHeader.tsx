@@ -40,7 +40,22 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
             ))}
           </ul>
         </nav>
+        <Link
+          to="/search"
+          aria-label="Search"
+          className="inline-flex size-11 items-center justify-center rounded-md hover:bg-line"
+        >
+          <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" />
+          </svg>
+        </Link>
         <ThemeToggle pref={theme} />
+        <Link
+          to="/newsletter"
+          className="hidden min-h-10 items-center rounded-full bg-gist px-4 text-sm font-bold text-gist-ink hover:opacity-90 sm:inline-flex"
+        >
+          Subscribe
+        </Link>
         <details ref={menu} className="group relative md:hidden">
           <summary
             className="inline-flex size-11 cursor-pointer list-none items-center justify-center rounded-md hover:bg-line [&::-webkit-details-marker]:hidden"

@@ -13,6 +13,10 @@
   --gist: #ffc72c;
   --gist-ink: #1b1f5e;
   --bad: #b3261e;
+  /* Always-dark surfaces (footer, banners), the same in both themes. */
+  --night: #14163f;
+  --night-ink: #eef0fb;
+  --night-muted: #b4b8d6;
   color-scheme: light;
 }
 :root.dark {
@@ -51,6 +55,9 @@
   --color-gist: var(--gist);
   --color-gist-ink: var(--gist-ink);
   --color-bad: var(--bad);
+  --color-night: var(--night);
+  --color-night-ink: var(--night-ink);
+  --color-night-muted: var(--night-muted);
   --font-display: "Bricolage Grotesque", "Bricolage Fallback", ui-sans-serif, system-ui, sans-serif;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }

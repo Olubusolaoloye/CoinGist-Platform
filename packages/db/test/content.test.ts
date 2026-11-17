@@ -89,6 +89,32 @@ describe("public content", () => {
   });
 });
 
+describe("featured, search and read time", () => {
+  it("lists editors' picks", async () => {
+    const picks = await content.listPosts({ featured: true, page: 1, pageSize: 10 });
+    expect(picks.items.map((p) => p.slug).sort()).toEqual([
+      "gist-p2p-trading-nigeria", "kenya-mobile-money-crypto-builders", "regulators-draft-rules-exchanges",
+      "set-up-self-custody-wallet", "what-is-a-stablecoin",
+    ]);
+  });
+
+  it("searches titles, excerpts and body text, best match first", async () => {
+    const res = await content.listPosts({ q: "stablecoin", page: 1, pageSize: 10 });
+    expect(res.items[0]!.slug).toBe("what-is-a-stablecoin");
+    expect(res.total).toBeGreaterThan(1);
+    // Body text is searched too (every seed body mentions "takeaway").
+    expect((await content.listPosts({ q: "takeaway", page: 1, pageSize: 50 })).total).toBe(13);
+    // websearch syntax is safe with odd input.
+    await expect(content.listPosts({ q: '"unbalanced -or OR & | !', page: 1, pageSize: 5 })).resolves.toBeDefined();
+    expect((await content.listPosts({ q: "zzzznotaword", page: 1, pageSize: 5 })).total).toBe(0);
+  });
+
+  it("estimates read time from the body", async () => {
+    const res = await content.listPosts({ page: 1, pageSize: 1 });
+    expect(res.items[0]!.readMinutes).toBeGreaterThanOrEqual(1);
+  });
+});
+
 describe("sitemap data", () => {
   it("lists every live post (no drafts) with tags, plus categories, authors and indexable tags", async () => {
     const data = await content.sitemap();

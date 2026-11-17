@@ -14,6 +14,8 @@ const ListQuery = z.object({
   tag: SlugSchema.optional(),
   author: SlugSchema.optional(),
   exclude: z.string().uuid().optional(),
+  featured: z.enum(["true", "false"]).optional(),
+  q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
   pageSize: z.coerce.number().int().min(1).max(50).default(12),
 });
@@ -33,6 +35,8 @@ export const publicRoutes = new Hono<AppEnv>()
       tagSlug: q.tag,
       authorSlug: q.author,
       excludeId: q.exclude,
+      featured: q.featured === "true",
+      q: q.q,
       page: q.page,
       pageSize: q.pageSize,
     });

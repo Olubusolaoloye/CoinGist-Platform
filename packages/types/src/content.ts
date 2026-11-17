@@ -54,6 +54,8 @@ export interface PostSummary {
   updatedAt: string;
   isSponsored: boolean;
   sponsorName: string | null;
+  /** Estimated reading time in whole minutes (at least 1). */
+  readMinutes: number;
 }
 
 export interface PostDetail extends PostSummary {

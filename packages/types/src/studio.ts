@@ -64,6 +64,8 @@ export const UpdatePostInputSchema = z
     isSponsored: z.boolean(),
     sponsorId: z.string().uuid().nullable().optional(),
     aiAssisted: z.boolean(),
+    /** Editors only (enforced in the database). */
+    featured: z.boolean(),
   })
   .partial()
   .strict()
@@ -129,6 +131,7 @@ export interface StudioPost {
   isSponsored: boolean;
   sponsorId: string | null;
   aiAssisted: boolean;
+  featured: boolean;
 }
 
 export interface EditorialComment {

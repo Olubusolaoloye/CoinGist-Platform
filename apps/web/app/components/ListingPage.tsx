@@ -1,5 +1,6 @@
 import type { Paginated, PostSummary } from "@coingist/types";
 import { Breadcrumbs } from "./Breadcrumbs";
+import { NewsletterBanner } from "./NewsletterBanner";
 import { Pagination } from "./Pagination";
 import { StoryList } from "./PostCard";
 
@@ -34,6 +35,7 @@ export function ListingPage({
         <p className="py-10 text-lg text-muted">{emptyText}</p>
       )}
       <Pagination path={path} page={list.page} pageSize={list.pageSize} total={list.total} />
+      <div className="mt-12"><NewsletterBanner source="section" /></div>
     </main>
   );
 }

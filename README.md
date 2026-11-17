@@ -96,8 +96,8 @@ concurrent-edit protection (today the last save wins).
 
 ## Newsletter (step 4)
 
-- **Signup:** the `/newsletter` page offers the Daily Gist and the Weekly Wrap; every page has a
-  footer form and every article ends with one. Forms work without JavaScript, and the web server
+- **Signup:** the `/newsletter` page offers the Daily Gist and the Weekly Wrap; the home and
+  section pages end with a "Stay in the loop" banner and every article ends with a form. Forms work without JavaScript, and the web server
   limits signups per visitor IP.
 - **Privacy:** the API always answers "check your inbox", so the form can't reveal who's
   subscribed. A hidden honeypot field drops bots, and the same address can't trigger another
@@ -166,6 +166,21 @@ Webhooks need a paid Beehiiv plan.
   events: Newsletter Signup (with source), Share (with network), Ad Click (slot and sponsor).
 - Click counts are a simple counter for sponsor reports; use Plausible's Ad Click events for
   numbers you can audit.
+
+## Home page, carousels and search
+
+- **Home:** a hero with "Today's gist in 30 seconds" (the lead story's gist), a "Just in" strip,
+  a Top stories carousel beside numbered Editors' picks, topic tiles, one swipeable carousel per
+  section, and the newsletter banner. The footer is always dark and lists every section.
+- **Carousels** use native scroll-snap, so touch, trackpad and keyboard work without JavaScript;
+  the arrow buttons and dots page through them. They never autoplay. Each slide is a labelled
+  group ("2 of 4"), following the WAI-ARIA carousel pattern.
+- **Editors' picks:** editors (not writers) tick "Feature in Editors' picks" in Studio. The
+  database enforces this (`posts_featured_guard`), not just the UI.
+- **Search:** `/search?q=` uses Postgres full-text search over titles, excerpts, tags and body
+  text, ranked by relevance (`websearch_to_tsquery`, so any input is safe). Results are
+  `noindex` and cached briefly at the CDN.
+- **Read time** on cards is the body word count divided by 220, at least one minute.
 
 ## Swapping the database (e.g. Convex)
 

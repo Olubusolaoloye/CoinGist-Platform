@@ -118,6 +118,7 @@ type PostRow = {
   is_sponsored: boolean;
   sponsor_id: string | null;
   ai_assisted: boolean;
+  featured: boolean;
 };
 
 const POST_SQL = `
@@ -156,6 +157,7 @@ const toPost = (r: PostRow): StudioPost => ({
   isSponsored: r.is_sponsored,
   sponsorId: r.sponsor_id,
   aiAssisted: r.ai_assisted,
+  featured: r.featured,
 });
 
 type CommentRow = {
@@ -284,6 +286,7 @@ export function createStudioRepository(db: Database): StudioRepository {
         if (input.isSponsored !== undefined) set("is_sponsored", input.isSponsored);
         if (input.sponsorId !== undefined) set("sponsor_id", input.sponsorId);
         if (input.aiAssisted !== undefined) set("ai_assisted", input.aiAssisted);
+        if (input.featured !== undefined) set("featured", input.featured);
         if (input.categorySlug !== undefined) {
           if (input.categorySlug === null) set("category_id", null);
           else {

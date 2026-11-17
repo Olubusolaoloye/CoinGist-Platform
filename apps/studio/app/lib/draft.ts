@@ -15,6 +15,7 @@ export interface Draft {
   seoTitle: string;
   seoDescription: string;
   aiAssisted: boolean;
+  featured: boolean;
 }
 
 export function draftFromPost(p: StudioPost): Draft {
@@ -32,6 +33,7 @@ export function draftFromPost(p: StudioPost): Draft {
     seoTitle: p.seoTitle ?? "",
     seoDescription: p.seoDescription ?? "",
     aiAssisted: p.aiAssisted,
+    featured: p.featured,
   };
 }
 

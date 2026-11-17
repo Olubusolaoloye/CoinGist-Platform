@@ -14,7 +14,7 @@ test.describe("home", () => {
     // The HTML from the server already contains the content (SEO).
     const html = await (await request.get("/")).text();
     expect(html).toContain("Stablecoin transfers climb");
-    expect(html).toContain("The gist in 30 seconds");
+    expect(html).toContain("gist in 30 seconds");
 
     await page.goto("/");
     await page.getByRole("link", { name: /Stablecoin transfers climb/ }).first().click();
@@ -160,7 +160,7 @@ test.describe("navigation", () => {
   });
 
   test("headings never skip a level", async ({ page }) => {
-    for (const path of ["/", ARTICLE, "/africa", "/news", "/tag/p2p", "/author/amara-okafor"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/news", "/tag/p2p", "/author/amara-okafor", "/search?q=stablecoin"]) {
       await page.goto(path);
       const levels = await page.$$eval("main h1, main h2, main h3, main h4", (els) =>
         els.map((e) => Number(e.tagName[1])),
@@ -174,7 +174,7 @@ test.describe("navigation", () => {
 
   test("no horizontal scrolling on a small phone", async ({ page }) => {
     await page.setViewportSize({ width: 360, height: 740 });
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/search?q=bitcoin"]) {
       await page.goto(path);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       expect(overflow, path).toBeLessThanOrEqual(0);
@@ -204,6 +204,33 @@ test.describe("theme", () => {
   });
 });
 
+test.describe("home and search", () => {
+  test("hero shows today's gist and the top stories carousel pages", async ({ page, isMobile }) => {
+    await page.goto("/");
+    const gist = page.getByRole("complementary", { name: "Today's gist in 30 seconds" });
+    await expect(gist.getByRole("link", { name: "Read the full story" })).toBeVisible();
+    const top = page.getByRole("region", { name: "Top stories" });
+    const slides = top.locator('[aria-roledescription="slide"]');
+    await expect(slides).toHaveCount(4);
+    await expect(top.getByRole("button", { name: "Previous top stories" })).toBeDisabled();
+    await top.getByRole("button", { name: "Next top stories" }).click();
+    await expect(top.getByRole("button", { name: "Previous top stories" })).toBeEnabled();
+    if (!isMobile) await expect(page.getByRole("region", { name: "Editors' picks" }).getByRole("listitem")).toHaveCount(5);
+  });
+
+  test("search finds stories by body text and handles odd input", async ({ page, request }) => {
+    await page.goto("/");
+    await page.getByRole("link", { name: "Search", exact: true }).first().click();
+    await page.getByRole("searchbox").fill("remittances");
+    await page.getByRole("searchbox").press("Enter");
+    await expect(page).toHaveURL(/\/search\?q=remittances/);
+    await expect(page.getByRole("link", { name: /Stablecoin transfers climb/ })).toBeVisible();
+    const res = await request.get("/search?q=%22%29%28%3A%2A%26");
+    expect(res.status()).toBe(200);
+    expect(res.headers()["x-robots-tag"]).toContain("noindex");
+  });
+});
+
 test.describe("newsletter", () => {
   test("signs up for both newsletters on the newsletter page", async ({ page }) => {
     await page.goto("/newsletter");
@@ -212,13 +239,12 @@ test.describe("newsletter", () => {
     await page.getByLabel("Email address").fill(`page-${Date.now()}@example.com`);
     await page.getByRole("button", { name: "Subscribe" }).click();
     await expect(page.getByRole("status").filter({ hasText: /./ })).toHaveText("Check your inbox to confirm your subscription.");
-    // The footer form is hidden here so there's only one email field.
     await expect(page.getByLabel("Email address")).toHaveCount(1);
   });
 
-  test("footer form subscribes in place and clears the field", async ({ page }) => {
+  test("section banner subscribes in place and clears the field", async ({ page }) => {
     await page.goto("/learn");
-    const footer = page.getByRole("contentinfo");
+    const footer = page.getByRole("region", { name: "Stay in the loop" });
     await footer.getByLabel("Email address").fill(`footer-${Date.now()}@example.com`);
     await footer.getByRole("button", { name: "Subscribe" }).click();
     await expect(footer.getByRole("status")).toHaveText("Check your inbox to confirm your subscription.");
@@ -238,7 +264,7 @@ test.describe("newsletter", () => {
     const ctx = await browser.newContext({ javaScriptEnabled: false });
     const page = await ctx.newPage();
     await page.goto("/gist");
-    const footer = page.getByRole("contentinfo");
+    const footer = page.getByRole("region", { name: "Stay in the loop" });
     await footer.getByLabel("Email address").fill(`nojs-${Date.now()}@example.com`);
     await footer.getByRole("button", { name: "Subscribe" }).click();
     await expect(page).toHaveURL("/newsletter");
@@ -397,7 +423,7 @@ test.describe("content security policy", () => {
 
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/search?q=stablecoin", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);

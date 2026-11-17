@@ -16,9 +16,10 @@ function Honeypot() {
   );
 }
 
-function Result({ result }: { result: SubscribeResult | undefined }) {
+function Result({ result, inverse = false }: { result: SubscribeResult | undefined; inverse?: boolean }) {
+  const error = inverse ? "font-semibold text-gist" : "font-semibold text-bad";
   return (
-    <p role="status" className={`min-h-6 text-sm ${result?.ok === false ? "font-semibold text-bad" : ""}`}>
+    <p role="status" className={`min-h-6 text-sm ${result?.ok === false ? error : ""}`}>
       {result?.message ?? ""}
     </p>
   );
@@ -37,7 +38,8 @@ export function NewsletterSignup({
   source: SignupSource;
   heading?: string;
   blurb?: string;
-  tone?: "plain" | "boxed";
+  /** "inverse": light text for dark backgrounds. */
+  tone?: "plain" | "boxed" | "inverse";
 }) {
   const fetcher = useFetcher<SubscribeResult>();
   const form = useRef<HTMLFormElement>(null);
@@ -49,11 +51,13 @@ export function NewsletterSignup({
     }
   }, [fetcher.state, fetcher.data, source]);
   const busy = fetcher.state !== "idle";
+  const inverse = tone === "inverse";
+  const subtle = inverse ? "text-night-muted" : "text-muted";
 
   return (
     <section aria-labelledby={`${id}-h`} className={tone === "boxed" ? "rounded-md border-2 border-ink p-5" : ""}>
-      <h2 id={`${id}-h`} className="font-display text-xl font-extrabold">{heading}</h2>
-      <p className="mt-1 max-w-[52ch] text-sm text-muted">{blurb}</p>
+      <h2 id={`${id}-h`} className={`font-display font-extrabold ${inverse ? "text-3xl" : "text-xl"}`}>{heading}</h2>
+      <p className={`mt-1 max-w-[52ch] text-sm ${subtle}`}>{blurb}</p>
       <fetcher.Form ref={form} method="post" action="/newsletter" className="relative mt-3">
         <input type="hidden" name="source" value={source} />
         <input type="hidden" name="lists" value="daily-gist" />
@@ -69,14 +73,17 @@ export function NewsletterSignup({
             placeholder="you@example.com"
             className="min-h-11 w-full rounded-md border border-line bg-surface px-3 text-ink placeholder:text-muted sm:max-w-80"
           />
-          <button className="min-h-11 shrink-0 rounded-md bg-ink px-5 font-semibold text-paper hover:opacity-90 disabled:opacity-60" disabled={busy}>
+          <button
+            className={`min-h-11 shrink-0 rounded-md px-5 font-semibold hover:opacity-90 disabled:opacity-60 ${inverse ? "bg-gist text-gist-ink" : "bg-ink text-paper"}`}
+            disabled={busy}
+          >
             {busy ? "Subscribing…" : "Subscribe"}
           </button>
         </div>
-        <p className="mt-2 text-xs text-muted">
+        <p className={`mt-2 text-xs ${subtle}`}>
           Free. Unsubscribe any time. See <Link to="/newsletter" className="underline">both newsletters</Link>.
         </p>
-        <Result result={fetcher.data} />
+        <Result result={fetcher.data} inverse={inverse} />
       </fetcher.Form>
     </section>
   );
