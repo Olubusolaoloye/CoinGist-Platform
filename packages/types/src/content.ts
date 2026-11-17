@@ -78,3 +78,23 @@ export interface Paginated<T> {
 export function postPath(post: Pick<PostSummary, "type" | "slug">): string {
   return `/${post.type}/${post.slug}`;
 }
+
+/** Everything the sitemaps need, in one lightweight payload. */
+export interface SitemapData {
+  posts: Array<{
+    type: PostType;
+    slug: string;
+    title: string;
+    publishedAt: string;
+    updatedAt: string;
+    isSponsored: boolean;
+    tags: string[];
+  }>;
+  categories: Array<{ slug: string; lastPublishedAt: string | null }>;
+  authors: Array<{ slug: string; lastPublishedAt: string | null }>;
+  /** Only tags with enough stories to be indexed (thin tag pages are noindex). */
+  tags: Array<{ slug: string; lastPublishedAt: string }>;
+}
+
+/** Tag pages with fewer stories than this are noindex and left out of sitemaps. */
+export const MIN_INDEXABLE_TAG_POSTS = 3;

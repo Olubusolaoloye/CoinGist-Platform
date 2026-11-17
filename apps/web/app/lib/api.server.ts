@@ -6,6 +6,7 @@ import type {
   PostDetail,
   PostSummary,
   PostType,
+  SitemapData,
   TagRef,
 } from "@coingist/types";
 import { apiUrl } from "./config.server";
@@ -74,6 +75,9 @@ export const api = {
   },
   async getTag(slug: string): Promise<TagRef> {
     return (await get<{ tag: TagRef }>(`/tags/${encodeURIComponent(slug)}`))!.tag;
+  },
+  async sitemap(): Promise<SitemapData> {
+    return (await get<SitemapData>("/sitemap"))!;
   },
   async getAuthor(slug: string): Promise<AuthorProfile> {
     return (await get<{ author: AuthorProfile }>(`/authors/${encodeURIComponent(slug)}`))!.author;

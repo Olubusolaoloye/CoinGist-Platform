@@ -89,6 +89,20 @@ describe("public content", () => {
   });
 });
 
+describe("sitemap data", () => {
+  it("lists every live post (no drafts) with tags, plus categories, authors and indexable tags", async () => {
+    const data = await content.sitemap();
+    expect(data.posts).toHaveLength(13);
+    expect(data.posts.map((p) => p.slug)).not.toContain("unpublished-draft-never-visible");
+    expect(data.posts.find((p) => p.slug === "gist-p2p-trading-nigeria")?.tags).toEqual(["Nigeria", "P2P"]);
+    expect(data.posts.find((p) => p.type === "sponsored")?.isSponsored).toBe(true);
+    expect(data.categories.find((c) => c.slug === "africa")?.lastPublishedAt).not.toBeNull();
+    expect(data.authors.map((a) => a.slug)).toEqual(["amara-okafor", "kwame-mensah", "tunde-bello", "zanele-dube"]);
+    // Only tags with at least 3 stories (seed: remittances has 3).
+    expect(data.tags.map((t) => t.slug)).toEqual(["remittances"]);
+  });
+});
+
 describe("seed", () => {
   it("backdates updated_at to the publish time", async () => {
     const res = await t.pg.query<{ n: number }>(

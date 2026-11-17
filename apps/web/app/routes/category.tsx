@@ -29,19 +29,29 @@ export async function loader({ request, params }: Route.LoaderArgs) {
 export function meta({ data }: Route.MetaArgs) {
   if (!data) return [];
   const { site, category, list, path } = data;
-  return buildMeta({
-    site,
-    path,
-    canonical: pagedPath(path, list.page),
-    title: list.page > 1 ? `${category.name}, page ${list.page}` : `${category.name} news`,
-    description: category.description ?? `The latest ${category.name} stories on CoinGist.`,
-    jsonLd: [
-      breadcrumbJsonLd(site, [
-        { name: "Home", path: "/" },
-        { name: category.name, path },
-      ]),
-    ],
-  });
+  const feedLink = {
+    tagName: "link" as const,
+    rel: "alternate",
+    type: "application/rss+xml",
+    title: `${category.name} | CoinGist`,
+    href: `${path}/rss.xml`,
+  };
+  return [
+    ...buildMeta({
+      site,
+      path,
+      canonical: pagedPath(path, list.page),
+      title: list.page > 1 ? `${category.name}, page ${list.page}` : `${category.name} news`,
+      description: category.description ?? `The latest ${category.name} stories on CoinGist.`,
+      jsonLd: [
+        breadcrumbJsonLd(site, [
+          { name: "Home", path: "/" },
+          { name: category.name, path },
+        ]),
+      ],
+    }),
+    feedLink,
+  ];
 }
 
 export default function CategoryPage({ loaderData }: Route.ComponentProps) {

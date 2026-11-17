@@ -45,6 +45,15 @@ describe("public content API", () => {
     expect((await app.request("/v1/public/authors/ghost")).status).toBe(404);
   });
 
+  it("serves sitemap data, cached", async () => {
+    const res = await app.request("/v1/public/sitemap");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toContain("s-maxage=60");
+    const body = (await res.json()) as { posts: unknown[]; categories: unknown[] };
+    expect(body.posts.length).toBe(13);
+    expect(body.categories.length).toBe(7);
+  });
+
   it("is not throttled by the per-IP limiter (SSR calls come from one IP)", async () => {
     const headers = { "x-forwarded-for": "10.0.0.1" };
     for (let i = 0; i < 5; i++) {

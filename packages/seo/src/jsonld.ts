@@ -43,13 +43,17 @@ export function breadcrumbJsonLd(
   };
 }
 
-/** NewsArticle for every post (required for Google News / Top Stories eligibility). */
+/**
+ * NewsArticle for every editorial post (Google News / Top Stories eligibility).
+ * Sponsored posts use schema.org's AdvertiserContentArticle so paid content is never
+ * presented to search engines as journalism.
+ */
 export function newsArticleJsonLd(site: SiteConfig, post: PostDetail): Ld {
   const url = post.canonical ? absoluteUrl(site, post.canonical) : absoluteUrl(site, postPath(post));
   const image = absoluteUrl(site, post.heroImage?.url ?? site.defaultImage);
   return {
     "@context": "https://schema.org",
-    "@type": "NewsArticle",
+    "@type": post.isSponsored ? "AdvertiserContentArticle" : "NewsArticle",
     "@id": `${url}#article`,
     mainEntityOfPage: { "@type": "WebPage", "@id": url },
     url,
@@ -77,6 +81,7 @@ export function newsArticleJsonLd(site: SiteConfig, post: PostDetail): Ld {
     keywords: post.tags.length ? post.tags.map((t) => t.name).join(", ") : undefined,
     isAccessibleForFree: true,
     inLanguage: site.locale,
+    ...(post.isSponsored && post.sponsor ? { sponsor: { "@type": "Organization", name: post.sponsor.name, url: post.sponsor.website ?? undefined } } : {}),
   };
 }
 
