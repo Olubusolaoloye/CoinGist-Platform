@@ -144,6 +144,29 @@ Webhooks need a paid Beehiiv plan.
   SEO; CLS 0; LCP 2.3 s on simulated slow 4G. Inlining the stylesheet was tried and measured slower
   (FCP 2.2 s vs 2.0 s), so it stays a cached file.
 
+## Sponsorship, ads, link safety and analytics (step 6)
+
+- **Link safety:** editors keep a list of blocked domains in Studio (`/link-safety`). Approving
+  any story fails while it links to a blocked domain or one of its subdomains, or while a sponsored
+  story's sponsor website is on the list. The database enforces this through a trigger on approval;
+  the editor sees which links, and why, in the status panel.
+- **Sponsored orders** (`/sponsored`): inquiry, then vetting, then accepted or rejected, then in
+  production, then published. An order can't be accepted until all six vetting items are ticked
+  (identity, licensing, no promised returns, links scanned, disclosure agreed, payment agreed). A
+  sponsored story can't be approved until an accepted order for its sponsor is linked to it, and
+  publishing the story completes the order. Status changes are audited.
+- **Ads and newsletter sponsors** (`/ads`): fixed slots (home banner, end of article, one per
+  newsletter). Bookings go live only after approval, and approved bookings can't overlap. Ads are
+  labelled "Advertisement from {sponsor}" and link through `/go/ad/:id`, which counts clicks
+  (throttled per visitor) before redirecting, with `rel="sponsored"`. Sponsored stories carry no ads.
+  An empty home slot shows a newsletter promo; an empty article slot shows nothing. Newsletter
+  bookings are a record for the team; placing them in the email happens in Beehiiv.
+- **Analytics:** Plausible, only when `PLAUSIBLE_DOMAIN` is set (optional `PLAUSIBLE_SCRIPT_URL`
+  for self-hosting). No cookies. The CSP adds Plausible's origin only when it's enabled. Custom
+  events: Newsletter Signup (with source), Share (with network), Ad Click (slot and sponsor).
+- Click counts are a simple counter for sponsor reports; use Plausible's Ad Click events for
+  numbers you can audit.
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.

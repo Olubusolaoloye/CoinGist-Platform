@@ -6,6 +6,7 @@ import type {
   PostDetail,
   PostSummary,
   PostType,
+  PublicAdSlot,
   SitemapData,
   TagRef,
 } from "@coingist/types";
@@ -75,6 +76,26 @@ export const api = {
   },
   async getTag(slug: string): Promise<TagRef> {
     return (await get<{ tag: TagRef }>(`/tags/${encodeURIComponent(slug)}`))!.tag;
+  },
+  /** Ads never break a page: on any error, render the slots empty. */
+  async ads(placement: "home" | "article"): Promise<PublicAdSlot[]> {
+    try {
+      return (await get<{ slots: PublicAdSlot[] }>(`/ads?placement=${placement}`))!.slots;
+    } catch {
+      return [];
+    }
+  },
+  async recordAdClick(id: string): Promise<string | null> {
+    try {
+      const res = await apiFetch(`/v1/public/ads/${encodeURIComponent(id)}/click`, {
+        method: "POST",
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok ? ((await res.json()) as { url: string }).url : null;
+    } catch {
+      return null;
+    }
   },
   async sitemap(): Promise<SitemapData> {
     return (await get<SitemapData>("/sitemap"))!;

@@ -232,6 +232,39 @@ export async function seedDevData(pg: PGlite): Promise<void> {
       ]);
     }
   }
+  // The sponsored sample went through the full order pipeline.
+  const sponsoredPost = await pg.query<{ id: string }>("select id from public.posts where type = 'sponsored' limit 1");
+  const order = await pg.query<{ id: string }>(
+    `insert into public.sponsored_orders (sponsor_id, post_id, title, brief, amount, currency, status, vetting_checklist, invoice_status, created_by)
+     values ($1, $2, 'Cross-border payments explainer', 'Fictional sample order.', 1500, 'USD', 'vetting', $3, 'paid', $4)
+     returning id`,
+    [
+      sponsor.rows[0]!.id,
+      sponsoredPost.rows[0]!.id,
+      JSON.stringify(Object.fromEntries(["identity_verified", "regulatory_status_checked", "no_guaranteed_returns", "links_scanned", "disclosure_agreed", "payment_terms_agreed"].map((k) => [k, true]))),
+      userIds["tunde"],
+    ],
+  );
+  for (const status of ["accepted", "in_production", "published"]) {
+    await pg.query("update public.sponsored_orders set status = $2::public.sponsored_order_status where id = $1", [order.rows[0]!.id, status]);
+  }
+
+  await pg.query(
+    `insert into public.blocked_domains (domain, reason, added_by) values
+       ('fake-exchange.example', 'Fictional sample: impersonates a crypto exchange', $1),
+       ('free-airdrop.example', 'Fictional sample: wallet-draining airdrop', $1)`,
+    [userIds["tunde"]],
+  );
+
+  // A live, approved end-of-article ad from the fictional sponsor.
+  await pg.query(
+    `insert into public.ad_bookings (slot_id, sponsor_id, starts_at, ends_at, creative_url, click_url, alt_text, approved)
+     select id, $1, now() - interval '1 day', now() + interval '365 days', '/sample/ad-examplepay.svg',
+            'https://example.com/', 'ExamplePay: send money home for less (fictional sample ad)', true
+     from public.ad_slots where key = 'article-end'`,
+    [sponsor.rows[0]!.id],
+  );
+
   // Seeded rows were inserted at "now"; backdate updated_at to match publish times.
   // The updated_at trigger would stamp "now", so switch it off for this one statement.
   await pg.exec(`

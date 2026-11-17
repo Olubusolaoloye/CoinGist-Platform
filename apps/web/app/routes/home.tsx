@@ -1,5 +1,6 @@
 import { buildMeta, organizationJsonLd, websiteJsonLd } from "@coingist/seo";
 import type { Route } from "./+types/home";
+import { AdSlot } from "~/components/AdSlot";
 import { GistBox } from "~/components/GistBox";
 import { LeadStory, StoryList, StoryTile } from "~/components/PostCard";
 import { SectionHeading } from "~/components/SectionHeading";
@@ -10,12 +11,13 @@ import { passLoaderHeaders } from "~/lib/headers";
 export const headers = passLoaderHeaders;
 
 export async function loader() {
-  const [latest, news, gist, learn, africa] = await Promise.all([
+  const [latest, news, gist, learn, africa, ads] = await Promise.all([
     api.listPosts({ pageSize: 10 }),
     api.listPosts({ type: "news", pageSize: 4 }),
     api.listPosts({ type: "gist", pageSize: 4 }),
     api.listPosts({ type: "learn", pageSize: 3 }),
     api.listPosts({ category: "africa", pageSize: 4 }),
+    api.ads("home"),
   ]);
   const lead = latest.items.find((p) => !p.isSponsored) ?? null;
   const leadDetail = lead ? await api.getPost(lead.slug) : null;
@@ -29,6 +31,7 @@ export async function loader() {
     gist: gist.items,
     learn: learn.items,
     africa: africa.items,
+    homeBanner: ads.find((s) => s.key === "home-banner"),
   });
 }
 
@@ -45,7 +48,7 @@ export function meta({ data }: Route.MetaArgs) {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { lead, leadGist, latest, news, gist, learn, africa } = loaderData;
+  const { lead, leadGist, latest, news, gist, learn, africa, homeBanner } = loaderData;
   return (
     <main className="mx-auto max-w-6xl px-4 pb-8">
       <h1 className="sr-only">CoinGist: crypto news with an African lens</h1>
@@ -64,6 +67,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ) : (
         <p className="py-16 text-lg text-muted">No stories yet. Published stories will show up here.</p>
       )}
+
+      <AdSlot slot={homeBanner} slotKey="home-banner" className="mt-12" />
 
       {news.length > 0 ? (
         <section className="mt-14">

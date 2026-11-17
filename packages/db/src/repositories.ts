@@ -1,4 +1,5 @@
 import type { AuditLog, Role, User, UserStatus } from "@coingist/types";
+import { createCommerceRepository, type CommerceRepository } from "./commerce.js";
 import { createContentRepository, type ContentRepository } from "./content.js";
 import type { Database, SessionClaims } from "./database.js";
 import { createNewsletterRepository, type NewsletterRepository } from "./newsletter.js";
@@ -13,6 +14,7 @@ import { mapDbError } from "./errors.js";
  * `findUserById` is the server's own lookup used for authorisation and runs privileged.
  */
 export interface Repositories {
+  commerce: CommerceRepository;
   content: ContentRepository;
   newsletter: NewsletterRepository;
   studio: StudioRepository;
@@ -80,6 +82,7 @@ export function createPgRepositories(db: Database): Repositories {
   const run = async <T>(p: Promise<T>): Promise<T> => p.catch(mapDbError);
 
   return {
+    commerce: createCommerceRepository(db),
     content: createContentRepository(db),
     newsletter: createNewsletterRepository(db),
     studio: createStudioRepository(db),

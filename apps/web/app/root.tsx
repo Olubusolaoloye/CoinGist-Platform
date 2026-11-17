@@ -15,7 +15,7 @@ import { BottomNav } from "./components/BottomNav";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
-import { isDemo, siteConfig } from "./lib/config.server";
+import { analyticsConfig, isDemo, siteConfig } from "./lib/config.server";
 import { readTheme } from "./lib/theme.server";
 import { useNonce } from "./lib/nonce";
 import "./app.css";
@@ -31,7 +31,14 @@ export async function loader({ request }: Route.LoaderArgs) {
   const site = siteConfig();
   // Navigation must not take the whole site down if the API hiccups.
   const categories = await api.listCategories().catch(() => []);
-  return data({ site, categories, theme: readTheme(request), demo: isDemo() });
+  const analytics = analyticsConfig();
+  return data({
+    site,
+    categories,
+    theme: readTheme(request),
+    demo: isDemo(),
+    analytics: analytics ? { domain: analytics.domain, src: analytics.src } : null,
+  });
 }
 
 // Font face is declared inline so its URL comes from the build (hashed, cacheable).
@@ -50,6 +57,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <style nonce={nonce} dangerouslySetInnerHTML={{ __html: fontFace }} />
         <Meta />
         <Links />
+        {root?.analytics ? (
+          <>
+            {/* Queue events fired before the script loads. */}
+            <script
+              nonce={nonce}
+              dangerouslySetInnerHTML={{
+                __html: "window.plausible=window.plausible||function(){(window.plausible.q=window.plausible.q||[]).push(arguments)}",
+              }}
+            />
+            <script nonce={nonce} defer data-domain={root.analytics.domain} src={root.analytics.src} />
+          </>
+        ) : null}
       </head>
       <body className="min-h-dvh font-sans antialiased">
         <a

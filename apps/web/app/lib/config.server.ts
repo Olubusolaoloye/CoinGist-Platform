@@ -16,3 +16,11 @@ export function apiUrl(): string {
 export function isDemo(): boolean {
   return process.env["DEMO_MODE"] === "true";
 }
+
+/** Plausible analytics (privacy-friendly, no cookies). Off unless PLAUSIBLE_DOMAIN is set. */
+export function analyticsConfig(): { domain: string; src: string; origin: string } | null {
+  const domain = process.env["PLAUSIBLE_DOMAIN"];
+  if (!domain) return null;
+  const src = process.env["PLAUSIBLE_SCRIPT_URL"] ?? "https://plausible.io/js/script.js";
+  return { domain, src, origin: new URL(src).origin };
+}

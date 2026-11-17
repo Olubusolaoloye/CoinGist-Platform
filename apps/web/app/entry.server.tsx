@@ -4,6 +4,7 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
+import { analyticsConfig } from "./lib/config.server";
 import { NonceContext } from "./lib/nonce";
 
 export const streamTimeout = 5_000;
@@ -13,13 +14,15 @@ export const streamTimeout = 5_000;
  * Production only (Vite's dev server injects inline scripts).
  */
 function contentSecurityPolicy(nonce: string, https: boolean): string {
+  // Plausible, when configured, loads its script from and reports to its own origin.
+  const analytics = analyticsConfig()?.origin ?? "";
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'`,
+    `script-src 'self' 'nonce-${nonce}' ${analytics}`.trim(),
     `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' data: https:",
     "font-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self' ${analytics}`.trim(),
     "media-src 'self' https:",
     "frame-src 'none'",
     "frame-ancestors 'none'",

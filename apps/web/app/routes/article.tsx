@@ -3,6 +3,7 @@ import { absoluteUrl, breadcrumbJsonLd, buildMeta, newsArticleJsonLd } from "@co
 import { postPath, POST_TYPES, type PostType } from "@coingist/types";
 import { readingTimeMinutes, RichText } from "@coingist/ui";
 import type { Route } from "./+types/article";
+import { AdSlot } from "~/components/AdSlot";
 import { Breadcrumbs } from "~/components/Breadcrumbs";
 import { Disclaimer } from "~/components/Disclaimer";
 import { GistBox } from "~/components/GistBox";
@@ -26,10 +27,20 @@ export async function loader({ params }: Route.LoaderArgs) {
   // One URL per story: /gist/x requested as /news/x gets a permanent redirect.
   if (post.type !== (params.section as PostType)) throw redirect(postPath(post), 301);
 
-  const related = post.category
-    ? (await api.listPosts({ category: post.category.slug, exclude: post.id, pageSize: 4 })).items
-    : [];
-  return cached({ site: siteConfig(), post, related, readMinutes: readingTimeMinutes(post.body) });
+  const [related, ads] = await Promise.all([
+    post.category
+      ? api.listPosts({ category: post.category.slug, exclude: post.id, pageSize: 4 }).then((l) => l.items)
+      : Promise.resolve([]),
+    // No third-party ads inside sponsored stories.
+    post.isSponsored ? Promise.resolve([]) : api.ads("article"),
+  ]);
+  return cached({
+    site: siteConfig(),
+    post,
+    related,
+    readMinutes: readingTimeMinutes(post.body),
+    articleEnd: post.isSponsored ? null : (ads.find((s) => s.key === "article-end") ?? undefined),
+  });
 }
 
 function crumbs(post: Route.ComponentProps["loaderData"]["post"]) {
@@ -67,7 +78,7 @@ export function meta({ data }: Route.MetaArgs) {
 }
 
 export default function Article({ loaderData }: Route.ComponentProps) {
-  const { site, post, related, readMinutes } = loaderData;
+  const { site, post, related, readMinutes, articleEnd } = loaderData;
   const url = absoluteUrl(site, postPath(post));
   const updated = Date.parse(post.updatedAt) - Date.parse(post.publishedAt) > 3_600_000;
 
@@ -159,6 +170,8 @@ export default function Article({ loaderData }: Route.ComponentProps) {
             </ul>
           </div>
         ) : null}
+
+        {articleEnd !== null ? <AdSlot slot={articleEnd} slotKey="article-end" className="mt-10" emptyPromo={false} /> : null}
 
         <div className="mt-8">
           <ShareBar url={url} title={post.title} />

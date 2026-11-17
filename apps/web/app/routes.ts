@@ -11,6 +11,7 @@ export default [
   route("author/:slug", "routes/author.tsx"),
   route("newsletter", "routes/newsletter.tsx"),
   route("about", "routes/about.tsx"),
+  route("go/ad/:id", "routes/go.ad.ts"),
   route("editorial-policy", "routes/editorial-policy.tsx"),
   // Feeds and crawler files (resource routes: no HTML).
   route("robots.txt", "routes/robots[.]txt.ts"),

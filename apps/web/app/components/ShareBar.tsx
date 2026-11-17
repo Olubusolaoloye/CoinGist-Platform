@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { track } from "~/lib/analytics";
 
 export function ShareBar({ url, title }: { url: string; title: string }) {
   const [copied, setCopied] = useState<"idle" | "done" | "failed">("idle");
@@ -16,6 +17,7 @@ export function ShareBar({ url, title }: { url: string; title: string }) {
     try {
       await navigator.clipboard.writeText(url);
       setCopied("done");
+      track("Share", { network: "Copy link" });
     } catch {
       setCopied("failed");
     }
@@ -26,7 +28,7 @@ export function ShareBar({ url, title }: { url: string; title: string }) {
       <h2 className="font-display text-base font-bold">Share this story</h2>
       <div className="mt-2 flex flex-wrap gap-2">
         {links.map((l) => (
-          <a key={l.name} href={l.href} target="_blank" rel="noopener noreferrer" className={btn}>
+          <a key={l.name} href={l.href} target="_blank" rel="noopener noreferrer" className={btn} onClick={() => track("Share", { network: l.name })}>
             {l.name}
             <span className="sr-only"> (opens in a new tab)</span>
           </a>

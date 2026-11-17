@@ -338,6 +338,38 @@ test.describe("editorial pages and structured data", () => {
   });
 });
 
+test.describe("ads and analytics", () => {
+  test("articles show a labelled ad that counts clicks and is marked sponsored", async ({ page, request }) => {
+    await page.goto(ARTICLE);
+    const ad = page.getByRole("complementary", { name: "Advertisement" });
+    await expect(ad.getByText("Advertisement from ExamplePay (fictional)")).toBeVisible();
+    const link = ad.getByRole("link");
+    await expect(link).toHaveAttribute("rel", "sponsored noopener");
+    const href = await link.getAttribute("href");
+    expect(href).toMatch(/^\/go\/ad\/[0-9a-f-]{36}$/);
+    const res = await request.get(href!, { maxRedirects: 0 });
+    expect(res.status()).toBe(302);
+    expect(res.headers()["location"]).toBe("https://example.com/");
+    expect((await request.get("/go/ad/00000000-0000-4000-8000-000000000000", { maxRedirects: 0 })).status()).toBe(404);
+  });
+
+  test("sponsored stories carry no ads", async ({ page }) => {
+    await page.goto(SPONSORED);
+    await expect(page.getByRole("complementary", { name: "Advertisement" })).toHaveCount(0);
+  });
+
+  test("an unbooked home slot promotes the newsletter", async ({ page }) => {
+    await page.goto("/");
+    const promo = page.getByRole("complementary", { name: "From CoinGist" });
+    await expect(promo.getByRole("link", { name: /Get the Daily Gist newsletter/ })).toHaveAttribute("href", "/newsletter");
+  });
+
+  test("analytics is off unless configured", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('script[data-domain]')).toHaveCount(0);
+  });
+});
+
 test.describe("content security policy", () => {
   test("is strict and nothing on the site violates it", async ({ page }) => {
     const problems: string[] = [];
