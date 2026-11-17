@@ -1,6 +1,7 @@
 import { isRouteErrorResponse, Link, Links, Meta, Outlet, Scripts, ScrollRestoration } from "react-router";
 import fontUrl from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url";
 import type { Route } from "./+types/root";
+import { useNonce } from "./lib/nonce";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
@@ -10,6 +11,7 @@ export const links: Route.LinksFunction = () => [
 const fontFace = `@font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;src:url(${fontUrl}) format("woff2")}`;
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const nonce = useNonce();
   return (
     <html lang="en">
       <head>
@@ -17,14 +19,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
         <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%231B1F5E'/%3E%3Ccircle cx='32' cy='32' r='18' fill='%23FFC72C'/%3E%3C/svg%3E" />
-        <style dangerouslySetInnerHTML={{ __html: fontFace }} />
+        <style nonce={nonce} dangerouslySetInnerHTML={{ __html: fontFace }} />
         <Meta />
         <Links />
       </head>
       <body className="min-h-dvh font-sans antialiased">
         {children}
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>
   );

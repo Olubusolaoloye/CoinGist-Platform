@@ -51,6 +51,7 @@ export const publicRoutes = new Hono<AppEnv>()
     const tag = await c.var.repos.content.getTag(c.req.valid("param").slug);
     return tag ? c.json({ tag }) : c.json(notFound, 404);
   })
+  .get("/sitemap", async (c) => c.json(await c.var.repos.content.sitemap()))
   .get("/authors/:slug", zValidator("param", SlugParam), async (c) => {
     const author = await c.var.repos.content.getAuthor(c.req.valid("param").slug);
     return author ? c.json({ author }) : c.json(notFound, 404);

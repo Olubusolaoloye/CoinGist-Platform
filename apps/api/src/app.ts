@@ -9,6 +9,7 @@ import type { NewsletterProvider } from "./newsletter/provider.js";
 import type { AppEnv } from "./context.js";
 import { authenticate, authFailureLimit, rateLimit } from "./middleware.js";
 import { adminRoutes } from "./routes/admin.js";
+import { commerceRoutes, publicAdRoutes } from "./routes/commerce.js";
 import { meRoutes } from "./routes/me.js";
 import { newsletterAdminRoutes, newsletterPublicRoutes, newsletterWebhookRoutes } from "./routes/newsletter.js";
 import { publicRoutes } from "./routes/public.js";
@@ -69,12 +70,14 @@ export function createApp(deps: AppDeps) {
   app.use("/v1/*", authenticate(deps.verifyToken));
   app.use("/v1/*", unlessPublic(perCaller));
   app.route("/v1/public", publicRoutes);
+  app.route("/v1/public/ads", publicAdRoutes);
   app.route("/v1/public/newsletter", newsletterPublicRoutes(deps.newsletter));
   app.route("/v1/webhooks", newsletterWebhookRoutes(deps.newsletterWebhookSecret));
   app.route("/v1/admin/subscribers", newsletterAdminRoutes(deps.newsletter));
   app.route("/v1/me", meRoutes);
   app.route("/v1/admin", adminRoutes);
   app.route("/v1/studio", studioRoutes);
+  app.route("/v1/studio", commerceRoutes);
 
   app.notFound((c) => c.json({ error: { code: "not_found", message: "Not found" } }, 404));
   app.onError((err, c) => {

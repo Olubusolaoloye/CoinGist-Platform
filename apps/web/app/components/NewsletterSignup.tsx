@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from "react";
 import { Link, useFetcher } from "react-router";
 import { NEWSLETTER_LIST_INFO, NEWSLETTER_LISTS, type SignupSource } from "@coingist/types";
+import { track } from "~/lib/analytics";
 import type { SubscribeResult } from "~/lib/api.server";
 
 /** Hidden from people (and screen readers); bots fill it in. */
@@ -42,8 +43,11 @@ export function NewsletterSignup({
   const form = useRef<HTMLFormElement>(null);
   const id = useId();
   useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.ok) form.current?.reset();
-  }, [fetcher.state, fetcher.data]);
+    if (fetcher.state === "idle" && fetcher.data?.ok) {
+      form.current?.reset();
+      track("Newsletter Signup", { source });
+    }
+  }, [fetcher.state, fetcher.data, source]);
   const busy = fetcher.state !== "idle";
 
   return (

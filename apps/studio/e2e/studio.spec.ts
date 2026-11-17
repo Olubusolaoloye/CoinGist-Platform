@@ -256,6 +256,92 @@ test.describe("admin", () => {
   });
 });
 
+test.describe("sponsorship, ads and link safety", () => {
+  test("a story linking to a blocked domain can't be approved, and the editor sees why", async ({ page }) => {
+    const domain = `scam-${Date.now()}.example`;
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Link safety" }).click();
+    await page.getByLabel("Domain").fill(`https://www.${domain}/login`);
+    await page.getByLabel("Why it's blocked").fill("Fake exchange (test)");
+    await page.getByRole("button", { name: "Block domain" }).click();
+    await expect(page.getByText(domain, { exact: true })).toBeVisible();
+    await signOut(page);
+
+    await signIn(page, WRITER);
+    await createPost(page, `Blocked link story ${Date.now()}`);
+    await page.locator(".ProseMirror").click();
+    await page.getByRole("button", { name: "Link" }).click();
+    await page.getByLabel("Text to show").fill("claim here");
+    await page.getByLabel("Link address").fill(`https://app.${domain}/claim`);
+    await page.getByRole("button", { name: "Apply" }).click();
+    await save(page);
+    await expect(page.getByRole("alert").filter({ hasText: "blocked domains" })).toContainText(`app.${domain}`);
+    await page.getByRole("button", { name: "Submit for review" }).click();
+    const url = page.url();
+    await signOut(page);
+
+    await signIn(page, EDITOR);
+    await page.goto(url);
+    await page.getByRole("button", { name: "Approve" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "links to blocked domains" })).toBeVisible();
+    await expect(page.getByText("In review").first()).toBeVisible();
+  });
+
+  test("an order can't be accepted until vetting is complete", async ({ page }) => {
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Sponsored" }).click();
+    const sponsor = `Test Sponsor ${Date.now()}`;
+    await page.getByLabel("Add a sponsor").fill(sponsor);
+    await page.getByRole("button", { name: "Add sponsor" }).click();
+    await expect(page.getByText("Sponsor added.")).toBeVisible();
+
+    await page.getByLabel("Sponsor", { exact: true }).selectOption({ label: sponsor });
+    await page.getByLabel("What they're buying").fill("Launch explainer");
+    await page.getByLabel("Price").fill("1200");
+    await page.getByRole("button", { name: "Create order" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Launch explainer");
+
+    await page.getByRole("button", { name: "Mark vetting" }).click();
+    const accept = page.getByRole("button", { name: "Accept order" });
+    await expect(accept).toBeDisabled();
+    for (const box of await page.getByRole("checkbox").all()) await box.check();
+    await page.getByRole("button", { name: "Save order" }).click();
+    await expect(page.getByText("Saved.")).toBeVisible();
+    await expect(accept).toBeEnabled();
+    await accept.click();
+    await expect(page.getByText("Accepted", { exact: true })).toBeVisible();
+  });
+
+  test("ad bookings go live only after approval", async ({ page }) => {
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Ads" }).click();
+    const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    await page.getByLabel("Slot").selectOption({ label: "Weekly Wrap newsletter sponsor" });
+    await page.getByLabel("Starts").fill(fmt(new Date(Date.now() - 3600_000)));
+    await page.getByLabel("Ends").fill(fmt(new Date(Date.now() + 7 * 86_400_000)));
+    await page.getByLabel("Image address").fill("https://cdn.example/banner.png");
+    await page.getByLabel("Alt text").fill("Test banner");
+    await page.getByLabel("Click-through address").fill("https://advertiser.example");
+    await page.getByRole("button", { name: "Create booking" }).click();
+    const slot = page.getByRole("region", { name: "Weekly Wrap newsletter sponsor" });
+    await expect(slot.getByText("Awaiting approval")).toBeVisible();
+    await slot.getByRole("button", { name: "Approve" }).click();
+    await expect(slot.getByText("Live")).toBeVisible();
+  });
+
+  test("writers can see link safety but not sponsorship or ads", async ({ page }) => {
+    await signIn(page, WRITER);
+    await expect(page.getByRole("link", { name: "Link safety" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Sponsored" })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Ads" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Block domain" })).toHaveCount(0);
+    for (const path of ["/sponsored", "/ads"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("You don't have access to this");
+    }
+  });
+});
+
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   test("login, posts and editor", async ({ page }) => {
     const check = async (label: string) => {
@@ -268,6 +354,10 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
     await check("posts");
     await page.getByRole("link", { name: "Review queue" }).click();
     await check("review");
+    for (const [name, path] of [["sponsored", "/sponsored"], ["ads", "/ads"], ["link safety", "/link-safety"]] as const) {
+      await page.goto(path);
+      await check(name);
+    }
     await createPost(page, `A11y ${Date.now()}`);
     await check("editor");
   });

@@ -6,9 +6,23 @@ import type {
   PostDetail,
   PostSummary,
   PostType,
+  PublicAdSlot,
+  SitemapData,
   TagRef,
 } from "@coingist/types";
 import { apiUrl } from "./config.server";
+
+/**
+ * Calls the API. Preview deploys (DEMO_INPROCESS_API=true) run the demo API inside this server
+ * instead, so one cold start builds one sample database rather than one per parallel request.
+ */
+async function apiFetch(path: string, init: RequestInit): Promise<Response> {
+  if (process.env["DEMO_INPROCESS_API"] === "true") {
+    const { demoApiFetch } = await import("./demo-api.server");
+    return demoApiFetch(new Request(`http://demo.internal${path}`, init));
+  }
+  return fetch(`${apiUrl()}${path}`, init);
+}
 
 /** Thrown into the route ErrorBoundary as a proper HTTP response. */
 function notFound(): never {
@@ -18,7 +32,7 @@ function notFound(): never {
 async function get<T>(path: string, opts: { allow404?: boolean } = {}): Promise<T | null> {
   let res: Response;
   try {
-    res = await fetch(`${apiUrl()}/v1/public${path}`, {
+    res = await apiFetch(`/v1/public${path}`, {
       headers: { accept: "application/json" },
       signal: AbortSignal.timeout(5000),
     });
@@ -63,6 +77,29 @@ export const api = {
   async getTag(slug: string): Promise<TagRef> {
     return (await get<{ tag: TagRef }>(`/tags/${encodeURIComponent(slug)}`))!.tag;
   },
+  /** Ads never break a page: on any error, render the slots empty. */
+  async ads(placement: "home" | "article"): Promise<PublicAdSlot[]> {
+    try {
+      return (await get<{ slots: PublicAdSlot[] }>(`/ads?placement=${placement}`))!.slots;
+    } catch {
+      return [];
+    }
+  },
+  async recordAdClick(id: string): Promise<string | null> {
+    try {
+      const res = await apiFetch(`/v1/public/ads/${encodeURIComponent(id)}/click`, {
+        method: "POST",
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      return res.ok ? ((await res.json()) as { url: string }).url : null;
+    } catch {
+      return null;
+    }
+  },
+  async sitemap(): Promise<SitemapData> {
+    return (await get<SitemapData>("/sitemap"))!;
+  },
   async getAuthor(slug: string): Promise<AuthorProfile> {
     return (await get<{ author: AuthorProfile }>(`/authors/${encodeURIComponent(slug)}`))!.author;
   },
@@ -99,7 +136,7 @@ export async function subscribeToNewsletter(body: {
   website: string;
 }): Promise<SubscribeResult> {
   try {
-    const res = await fetch(`${apiUrl()}/v1/public/newsletter/subscribe`, {
+    const res = await apiFetch(`/v1/public/newsletter/subscribe`, {
       method: "POST",
       headers: { "content-type": "application/json", accept: "application/json" },
       body: JSON.stringify(body),

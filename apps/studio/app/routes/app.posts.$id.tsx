@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { data, redirect, useBlocker, useFetcher } from "react-router";
 import type {
+  BlockedLink,
   CategoryRef,
   EditorialComment,
   Revision,
@@ -36,13 +37,14 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (!UUID.test(params.id)) throw data({ error: "Not found" }, { status: 404 });
   const api = studioApi(auth);
   const base = `/v1/studio/posts/${params.id}`;
-  const [{ post }, { comments }, { revisions }, taxonomy] = await Promise.all([
+  const [{ post }, { comments }, { revisions }, taxonomy, { blocked }] = await Promise.all([
     api.get<{ post: StudioPost }>(base),
     api.get<{ comments: EditorialComment[] }>(`${base}/comments`),
     api.get<{ revisions: RevisionSummary[] }>(`${base}/revisions`),
     api.get<{ categories: CategoryRef[]; tags: TagRef[] }>("/v1/studio/taxonomy"),
+    api.get<{ blocked: BlockedLink[] }>(`${base}/link-check`),
   ]);
-  return data({ post, comments, revisions, taxonomy, siteUrl: env.siteUrl }, { headers: auth.headers });
+  return data({ post, comments, revisions, taxonomy, blocked, siteUrl: env.siteUrl }, { headers: auth.headers });
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -105,7 +107,7 @@ export default function EditPostRoute({ loaderData }: Route.ComponentProps) {
   return <EditPost key={loaderData.post.id} {...loaderData} />;
 }
 
-function EditPost({ post, comments, revisions, taxonomy, siteUrl }: Route.ComponentProps["loaderData"]) {
+function EditPost({ post, comments, revisions, taxonomy, blocked, siteUrl }: Route.ComponentProps["loaderData"]) {
   const me = useMe();
   const editable = canEditContent(me.user.role, me.user.id, post);
   const actions = workflowActions(me.user.role, me.user.id, post);
@@ -235,7 +237,7 @@ function EditPost({ post, comments, revisions, taxonomy, siteUrl }: Route.Compon
         </div>
 
         <aside className="space-y-4" aria-label="Post settings">
-          <WorkflowPanel post={post} actions={actions} dirty={dirty} />
+          <WorkflowPanel post={post} actions={actions} dirty={dirty} blocked={blocked} />
           <DetailsPanel draft={draft} set={set} editable={editable} categories={taxonomy.categories} tags={taxonomy.tags} />
           <SeoPanel draft={draft} set={set} editable={editable} siteUrl={siteUrl} />
           <CommentsPanel comments={comments} />

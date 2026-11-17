@@ -1,8 +1,10 @@
+import { useEffect } from "react";
 import { data, Form, useNavigation } from "react-router";
 import { breadcrumbJsonLd, buildMeta } from "@coingist/seo";
 import type { Route } from "./+types/newsletter";
 import { Breadcrumbs } from "~/components/Breadcrumbs";
 import { NewsletterForm } from "~/components/NewsletterSignup";
+import { track } from "~/lib/analytics";
 import { cached, subscribeToNewsletter, type SubscribeResult } from "~/lib/api.server";
 import { siteConfig } from "~/lib/config.server";
 import { passLoaderHeaders } from "~/lib/headers";
@@ -44,6 +46,9 @@ export function meta({ data }: Route.MetaArgs) {
 
 export default function Newsletter({ actionData }: Route.ComponentProps) {
   const busy = useNavigation().state === "submitting";
+  useEffect(() => {
+    if (actionData?.ok) track("Newsletter Signup", { source: "newsletter-page" });
+  }, [actionData]);
   return (
     <main className="mx-auto max-w-3xl px-4 pt-6 pb-8">
       <Breadcrumbs items={[{ name: "Home", path: "/" }, { name: "Newsletters", path: "/newsletter" }]} />

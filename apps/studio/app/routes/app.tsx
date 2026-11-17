@@ -37,6 +37,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             <ul className="flex flex-wrap gap-1">
               <li><NavLink to="/posts" end className={nav}>Posts</NavLink></li>
               {hasAtLeast(role, "editor") ? <li><NavLink to="/review" className={nav}>Review queue</NavLink></li> : null}
+              {can(role, "sponsored:manage") ? <li><NavLink to="/sponsored" className={nav}>Sponsored</NavLink></li> : null}
+              {can(role, "ads:manage") ? <li><NavLink to="/ads" className={nav}>Ads</NavLink></li> : null}
+              <li><NavLink to="/link-safety" className={nav}>Link safety</NavLink></li>
               {can(role, "subscribers:manage") ? <li><NavLink to="/subscribers" className={nav}>Subscribers</NavLink></li> : null}
               {can(role, "audit:view") ? <li><NavLink to="/audit" className={nav}>Audit log</NavLink></li> : null}
             </ul>

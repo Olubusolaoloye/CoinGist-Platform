@@ -120,6 +120,53 @@ accepts a few shapes), and that a `lists` custom field exists in the publication
 segments can target each newsletter. Double opt-in is a Beehiiv publication setting; turn it on.
 Webhooks need a paid Beehiiv plan.
 
+## SEO, feeds and security (step 5)
+
+- **Sitemaps:** `/sitemap.xml` indexes `/sitemap-pages.xml` (home, sections, categories, authors,
+  tags with at least 3 stories, about and policy pages) and `/sitemap-posts.xml` (every live story).
+  `/news-sitemap.xml` is the Google News sitemap: editorial stories from the last 48 hours, never
+  sponsored ones.
+- **RSS:** `/rss.xml`, `/news/rss.xml`, `/gist/rss.xml`, `/learn/rss.xml`, `/africa/rss.xml` and
+  `/category/:slug/rss.xml`, each linked from its page's `<head>`. Sponsored items say
+  "Sponsored:" in the title.
+- **robots.txt** is generated: it lists both sitemaps, and blocks everything when `DEMO_MODE=true`.
+- **Structured data:** sponsored stories use `AdvertiserContentArticle` (with the sponsor) instead of
+  `NewsArticle`. `/editorial-policy` now exists, so the publisher's `publishingPrinciples` resolves.
+  React Router escapes `<`, `>` and `&` in JSON-LD, so a headline can't break out of the script.
+- **Content Security Policy** (production builds): a fresh nonce per response; scripts and the
+  site's inline styles need it; no `unsafe-inline` on the public site; no framing, `<base>`,
+  plugins, or form posts to other origins. Studio allows inline styles (the editor sets them) and
+  form redirects to Supabase/Google for sign-in. E2E tests fail on any CSP violation.
+- **Editorial pages:** `/about` and `/editorial-policy` describe what the system enforces. Editors
+  should review the wording and add their own policies (conflicts of interest, sourcing standards,
+  a corrections contact) before launch. `/privacy`, `/terms` and `/advertise` still need writing.
+- **Performance (local Lighthouse, mobile):** 96 performance, 100 accessibility, best practices and
+  SEO; CLS 0; LCP 2.3 s on simulated slow 4G. Inlining the stylesheet was tried and measured slower
+  (FCP 2.2 s vs 2.0 s), so it stays a cached file.
+
+## Sponsorship, ads, link safety and analytics (step 6)
+
+- **Link safety:** editors keep a list of blocked domains in Studio (`/link-safety`). Approving
+  any story fails while it links to a blocked domain or one of its subdomains, or while a sponsored
+  story's sponsor website is on the list. The database enforces this through a trigger on approval;
+  the editor sees which links, and why, in the status panel.
+- **Sponsored orders** (`/sponsored`): inquiry, then vetting, then accepted or rejected, then in
+  production, then published. An order can't be accepted until all six vetting items are ticked
+  (identity, licensing, no promised returns, links scanned, disclosure agreed, payment agreed). A
+  sponsored story can't be approved until an accepted order for its sponsor is linked to it, and
+  publishing the story completes the order. Status changes are audited.
+- **Ads and newsletter sponsors** (`/ads`): fixed slots (home banner, end of article, one per
+  newsletter). Bookings go live only after approval, and approved bookings can't overlap. Ads are
+  labelled "Advertisement from {sponsor}" and link through `/go/ad/:id`, which counts clicks
+  (throttled per visitor) before redirecting, with `rel="sponsored"`. Sponsored stories carry no ads.
+  An empty home slot shows a newsletter promo; an empty article slot shows nothing. Newsletter
+  bookings are a record for the team; placing them in the email happens in Beehiiv.
+- **Analytics:** Plausible, only when `PLAUSIBLE_DOMAIN` is set (optional `PLAUSIBLE_SCRIPT_URL`
+  for self-hosting). No cookies. The CSP adds Plausible's origin only when it's enabled. Custom
+  events: Newsletter Signup (with source), Share (with network), Ad Click (slot and sponsor).
+- Click counts are a simple counter for sponsor reports; use Plausible's Ad Click events for
+  numbers you can audit.
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.

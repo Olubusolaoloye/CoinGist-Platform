@@ -13,6 +13,10 @@ export default [
     route("review", "routes/app.review.tsx"),
     route("audit", "routes/app.audit.tsx"),
     route("subscribers", "routes/app.subscribers.tsx"),
+    route("sponsored", "routes/app.sponsored.tsx"),
+    route("sponsored/:id", "routes/app.sponsored.$id.tsx"),
+    route("ads", "routes/app.ads.tsx"),
+    route("link-safety", "routes/app.link-safety.tsx"),
   ]),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

@@ -252,9 +252,152 @@ test.describe("newsletter", () => {
   });
 });
 
+test.describe("feeds, sitemaps and crawlers", () => {
+  /** Parse XML in the browser so malformed feeds fail the test. */
+  async function parseXml(page: Page, xml: string) {
+    return page.evaluate((text) => {
+      const doc = new DOMParser().parseFromString(text, "application/xml");
+      return doc.getElementsByTagName("parsererror").length === 0;
+    }, xml);
+  }
+
+  test("robots.txt allows crawling and points at the sitemaps", async ({ request }) => {
+    const body = await (await request.get("/robots.txt")).text();
+    expect(body).toContain("Allow: /");
+    expect(body).toContain("Sitemap: https://coingist.test/sitemap.xml");
+    expect(body).toContain("Sitemap: https://coingist.test/news-sitemap.xml");
+  });
+
+  test("sitemap index and sitemaps are well-formed and list live content only", async ({ page, request }) => {
+    for (const path of ["/sitemap.xml", "/sitemap-pages.xml", "/sitemap-posts.xml", "/news-sitemap.xml"]) {
+      const res = await request.get(path);
+      expect(res.headers()["content-type"], path).toContain("application/xml");
+      expect(await parseXml(page, await res.text()), path).toBe(true);
+    }
+    const index = await (await request.get("/sitemap.xml")).text();
+    expect(index.match(/<sitemap>/g)).toHaveLength(3);
+
+    const posts = await (await request.get("/sitemap-posts.xml")).text();
+    expect(posts).toContain("<loc>https://coingist.test/news/stablecoin-transfers-climb-remittances</loc>");
+    expect(posts).not.toContain("unpublished-draft-never-visible");
+
+    const pages = await (await request.get("/sitemap-pages.xml")).text();
+    for (const loc of ["/africa", "/author/amara-okafor", "/editorial-policy", "/tag/remittances"]) {
+      expect(pages).toContain(`<loc>https://coingist.test${loc}</loc>`);
+    }
+    expect(pages).not.toContain("/tag/p2p"); // thin tag pages are noindex, so not listed
+  });
+
+  test("Google News sitemap has recent editorial stories, not sponsored ones", async ({ request }) => {
+    const news = await (await request.get("/news-sitemap.xml")).text();
+    expect(news).toContain('xmlns:news="http://www.google.com/schemas/sitemap-news/0.9"');
+    expect(news).toContain("<news:name>CoinGist</news:name>");
+    expect(news).toContain("/news/stablecoin-transfers-climb-remittances");
+    expect(news).not.toContain("examplepay"); // sponsored
+    expect(news).not.toContain("south-africa-exchanges-record-signups"); // 90 hours old
+  });
+
+  test("RSS feeds are valid and discoverable", async ({ page, request }) => {
+    for (const path of ["/rss.xml", "/news/rss.xml", "/gist/rss.xml", "/learn/rss.xml", "/africa/rss.xml", "/category/bitcoin/rss.xml"]) {
+      const res = await request.get(path);
+      expect(res.status(), path).toBe(200);
+      expect(res.headers()["content-type"], path).toContain("application/rss+xml");
+      expect(await parseXml(page, await res.text()), path).toBe(true);
+    }
+    const all = await (await request.get("/rss.xml")).text();
+    expect(all).toContain("<title>Sponsored: How ExamplePay makes cross-border payments simpler</title>");
+    expect(all).not.toContain("unpublished-draft");
+    expect((await request.get("/category/nope/rss.xml")).status()).toBe(404);
+
+    await page.goto("/");
+    await expect(page.locator('link[rel="alternate"][type="application/rss+xml"]')).toHaveAttribute("href", "/rss.xml");
+    await page.goto("/gist");
+    await expect(page.locator('link[rel="alternate"][href="/gist/rss.xml"]')).toHaveCount(1);
+  });
+});
+
+test.describe("editorial pages and structured data", () => {
+  test("about and editorial policy exist and are linked from every page", async ({ page, request }) => {
+    expect((await request.get("/about")).status()).toBe(200);
+    expect((await request.get("/editorial-policy")).status()).toBe(200);
+    await page.goto(ARTICLE);
+    // The publisher's publishingPrinciples URL in JSON-LD must resolve.
+    const ld = await jsonLd(page);
+    expect(JSON.stringify(ld)).not.toContain("publishingPrinciples");
+    await page.goto("/");
+    const org = (await jsonLd(page)).find((d) => d["@type"] === "NewsMediaOrganization");
+    expect(org?.["publishingPrinciples"]).toBe("https://coingist.test/editorial-policy");
+    await page.getByRole("contentinfo").getByRole("link", { name: "Editorial policy" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Editorial policy");
+  });
+
+  test("sponsored stories are marked as advertiser content", async ({ page }) => {
+    await page.goto(SPONSORED);
+    const article = (await jsonLd(page)).find((d) => String(d["@type"]).includes("Article"));
+    expect(article).toMatchObject({ "@type": "AdvertiserContentArticle", sponsor: { name: "ExamplePay (fictional)" } });
+  });
+});
+
+test.describe("ads and analytics", () => {
+  test("articles show a labelled ad that counts clicks and is marked sponsored", async ({ page, request }) => {
+    await page.goto(ARTICLE);
+    const ad = page.getByRole("complementary", { name: "Advertisement" });
+    await expect(ad.getByText("Advertisement from ExamplePay (fictional)")).toBeVisible();
+    const link = ad.getByRole("link");
+    await expect(link).toHaveAttribute("rel", "sponsored noopener");
+    const href = await link.getAttribute("href");
+    expect(href).toMatch(/^\/go\/ad\/[0-9a-f-]{36}$/);
+    const res = await request.get(href!, { maxRedirects: 0 });
+    expect(res.status()).toBe(302);
+    expect(res.headers()["location"]).toBe("https://example.com/");
+    expect((await request.get("/go/ad/00000000-0000-4000-8000-000000000000", { maxRedirects: 0 })).status()).toBe(404);
+  });
+
+  test("sponsored stories carry no ads", async ({ page }) => {
+    await page.goto(SPONSORED);
+    await expect(page.getByRole("complementary", { name: "Advertisement" })).toHaveCount(0);
+  });
+
+  test("an unbooked home slot promotes the newsletter", async ({ page }) => {
+    await page.goto("/");
+    const promo = page.getByRole("complementary", { name: "From CoinGist" });
+    await expect(promo.getByRole("link", { name: /Get the Daily Gist newsletter/ })).toHaveAttribute("href", "/newsletter");
+  });
+
+  test("analytics is off unless configured", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator('script[data-domain]')).toHaveCount(0);
+  });
+});
+
+test.describe("content security policy", () => {
+  test("is strict and nothing on the site violates it", async ({ page }) => {
+    const problems: string[] = [];
+    page.on("console", (m) => {
+      if (m.type() === "error" || /Content Security Policy/i.test(m.text())) problems.push(m.text());
+    });
+    page.on("pageerror", (e) => problems.push(e.message));
+
+    const res = await page.goto("/");
+    const csp = res?.headers()["content-security-policy"] ?? "";
+    expect(csp).toMatch(/script-src 'self' 'nonce-[A-Za-z0-9+/=]+'/);
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).not.toContain("unsafe-inline");
+
+    const second = await page.request.get("/");
+    expect(second.headers()["content-security-policy"]).not.toBe(csp); // fresh nonce per response
+
+    await page.getByRole("button", { name: /Switch to (dark|light) theme/ }).click();
+    await page.goto(ARTICLE);
+    await page.goto("/newsletter");
+    expect(problems).toEqual([]);
+  });
+});
+
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);
