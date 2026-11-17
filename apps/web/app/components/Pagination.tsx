@@ -3,7 +3,8 @@ import { Link } from "react-router";
 export function Pagination({ path, page, pageSize, total }: { path: string; page: number; pageSize: number; total: number }) {
   const last = Math.max(1, Math.ceil(total / pageSize));
   if (last <= 1) return null;
-  const href = (n: number) => (n === 1 ? path : `${path}?page=${n}`);
+  const sep = path.includes("?") ? "&" : "?";
+  const href = (n: number) => (n === 1 ? path : `${path}${sep}page=${n}`);
   const btn = "rounded-md border border-line px-4 py-2 font-medium hover:border-ink";
   return (
     <nav aria-label="Pagination" className="mt-8 flex items-center justify-between gap-4">

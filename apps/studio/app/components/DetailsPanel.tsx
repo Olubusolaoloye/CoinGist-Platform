@@ -7,12 +7,15 @@ export function DetailsPanel({
   editable,
   categories,
   tags,
+  canFeature,
 }: {
   draft: Draft;
   set: (patch: Partial<Draft>) => void;
   editable: boolean;
   categories: CategoryRef[];
   tags: TagRef[];
+  /** Editors and admins choose the home page's Editors' picks. */
+  canFeature: boolean;
 }) {
   const bullets = [...draft.summaryBullets, "", "", "", "", ""].slice(0, 5);
   return (
@@ -89,6 +92,17 @@ export function DetailsPanel({
         ) : null}
         <p className="hint">16:9, at least 1200px wide. Uploads arrive with media storage.</p>
       </div>
+
+      {canFeature ? (
+        <label className="flex items-start gap-2 text-sm">
+          <input type="checkbox" className="mt-1" checked={draft.featured} disabled={!editable}
+            onChange={(e) => set({ featured: e.target.checked })} />
+          <span>
+            <span className="font-semibold">Feature in Editors' picks</span>
+            <span className="block text-muted">Listed on the home page once published.</span>
+          </span>
+        </label>
+      ) : null}
 
       <label className="flex items-start gap-2 text-sm">
         <input type="checkbox" className="mt-1" checked={draft.aiAssisted} disabled={!editable || draft.aiAssisted}

@@ -19,6 +19,10 @@ export interface ListPostsQuery {
   tagSlug?: string | undefined;
   authorSlug?: string | undefined;
   excludeId?: string | undefined;
+  /** Only stories editors have featured. */
+  featured?: boolean | undefined;
+  /** Full-text search; results ranked by relevance, then recency. */
+  q?: string | undefined;
   page: number;
   pageSize: number;
 }
@@ -52,6 +56,7 @@ type SummaryRow = {
   author_name: string | null;
   author_avatar: string | null;
   sponsor_name: string | null;
+  read_minutes: number;
   total?: number;
 };
 
@@ -73,7 +78,9 @@ const SUMMARY_SELECT = `
   p.published_at, p.updated_at, p.is_sponsored,
   c.slug as category_slug, c.name as category_name,
   a.slug as author_slug, a.name as author_name, a.avatar_url as author_avatar,
-  s.name as sponsor_name`;
+  s.name as sponsor_name,
+  greatest(1, round(coalesce(array_length(regexp_split_to_array(
+    trim(jsonb_path_query_array(p.body_json, 'lax $.**.text')::text), '\s+'), 1), 0) / 220.0))::int as read_minutes`;
 
 const SUMMARY_FROM = `
   from public.posts p
@@ -97,6 +104,7 @@ function toSummary(r: SummaryRow): PostSummary {
     updatedAt: iso(r.updated_at),
     isSponsored: r.is_sponsored,
     sponsorName: r.sponsor_name,
+    readMinutes: r.read_minutes,
   };
 }
 
@@ -106,6 +114,7 @@ export function createContentRepository(db: Database): ContentRepository {
   return {
     listPosts: (q) =>
       anon(async (sql) => {
+        const search = q.q?.trim() ? q.q.trim().slice(0, 100) : null;
         const rows = await sql.query<SummaryRow>(
           `select ${SUMMARY_SELECT}, count(*) over ()::int as total
            ${SUMMARY_FROM}
@@ -117,7 +126,12 @@ export function createContentRepository(db: Database): ContentRepository {
                select 1 from public.post_tags pt join public.tags t on t.id = pt.tag_id
                where pt.post_id = p.id and t.slug = $4))
              and ($5::uuid is null or p.id <> $5)
-           order by p.published_at desc, p.id desc
+             and (not $8::boolean or p.featured)
+             and ($9::text is null or p.search @@ websearch_to_tsquery('english', $9))
+           order by
+             case when $9::text is null then 0
+                  else ts_rank(p.search, websearch_to_tsquery('english', $9)) end desc,
+             p.published_at desc, p.id desc
            limit $6 offset $7`,
           [
             q.type ?? null,
@@ -127,6 +141,8 @@ export function createContentRepository(db: Database): ContentRepository {
             q.excludeId ?? null,
             q.pageSize,
             (q.page - 1) * q.pageSize,
+            q.featured ?? false,
+            search,
           ],
         );
         return {

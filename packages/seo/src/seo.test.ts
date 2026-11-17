@@ -12,6 +12,7 @@ const post: PostDetail = {
   slug: "btc-holds",
   title: "Bitcoin holds steady",
   excerpt: "Short excerpt.",
+  readMinutes: 1,
   heroImage: { url: "/img/btc.webp", alt: "Chart" },
   category: { slug: "bitcoin", name: "Bitcoin" },
   author: { slug: "amara-okafor", name: "Amara Okafor", avatarUrl: null },

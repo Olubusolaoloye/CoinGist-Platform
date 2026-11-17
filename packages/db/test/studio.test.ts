@@ -147,6 +147,17 @@ describe("review workflow", () => {
   });
 });
 
+describe("featuring", () => {
+  it("lets editors feature stories but not writers", async () => {
+    const post = await studio.createPost(writer.claims, { type: "news", title: "Feature me" });
+    await expect(studio.updatePost(writer.claims, post.id, { featured: true })).rejects.toMatchObject({ kind: "forbidden" });
+    await expect(studio.updatePost(editor.claims, post.id, { featured: true })).resolves.toMatchObject({ featured: true });
+    await expect(
+      t.db.asUser(writer.claims, (q) => q.query("update public.posts set featured = false where id = $1", [post.id])),
+    ).rejects.toThrow(/only editors/);
+  });
+});
+
 describe("comments", () => {
   it("resolves comments without allowing text edits", async () => {
     const post = await studio.createPost(writer.claims, { type: "news", title: "Commented" });

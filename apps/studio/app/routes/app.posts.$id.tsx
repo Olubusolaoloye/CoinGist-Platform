@@ -22,6 +22,7 @@ import { draftFingerprint, draftFromPost, draftToPayload, type Draft } from "~/l
 import { env } from "~/lib/env.server";
 import { studioHeaders } from "~/lib/headers";
 import { useMe } from "~/lib/me";
+import { hasAtLeast } from "@coingist/types";
 import { canEditContent, lockedReason, workflowActions } from "~/lib/workflow";
 
 export const headers = studioHeaders;
@@ -238,7 +239,7 @@ function EditPost({ post, comments, revisions, taxonomy, blocked, siteUrl }: Rou
 
         <aside className="space-y-4" aria-label="Post settings">
           <WorkflowPanel post={post} actions={actions} dirty={dirty} blocked={blocked} />
-          <DetailsPanel draft={draft} set={set} editable={editable} categories={taxonomy.categories} tags={taxonomy.tags} />
+          <DetailsPanel draft={draft} set={set} editable={editable} categories={taxonomy.categories} tags={taxonomy.tags} canFeature={hasAtLeast(me.user.role, "editor")} />
           <SeoPanel draft={draft} set={set} editable={editable} siteUrl={siteUrl} />
           <CommentsPanel comments={comments} />
           <HistoryPanel revisions={revisions} canRestore={editable} dirty={dirty} onRestore={() => { reloadFromServer.current = true; }} />

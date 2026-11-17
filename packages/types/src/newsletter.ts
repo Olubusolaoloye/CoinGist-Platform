@@ -18,7 +18,7 @@ export const NEWSLETTER_LIST_INFO: Record<NewsletterList, { name: string; cadenc
 };
 
 /** Where on the site a signup came from (for reporting). Unknown values are stored as "other". */
-export const SIGNUP_SOURCES = ["footer", "article", "newsletter-page", "home", "other"] as const;
+export const SIGNUP_SOURCES = ["footer", "article", "newsletter-page", "home", "section", "search", "other"] as const;
 export type SignupSource = (typeof SIGNUP_SOURCES)[number];
 
 export const SubscribeInputSchema = z

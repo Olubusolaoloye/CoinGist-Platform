@@ -55,6 +55,8 @@ export interface ListParams {
   tag?: string;
   author?: string;
   exclude?: string;
+  featured?: boolean;
+  q?: string;
   page?: number;
   pageSize?: number;
 }

@@ -232,6 +232,13 @@ export async function seedDevData(pg: PGlite): Promise<void> {
       ]);
     }
   }
+  // Editors' picks on the home page.
+  await pg.query(
+    `update public.posts set featured = true where slug in (
+       'what-is-a-stablecoin', 'gist-p2p-trading-nigeria', 'kenya-mobile-money-crypto-builders',
+       'set-up-self-custody-wallet', 'regulators-draft-rules-exchanges')`,
+  );
+
   // The sponsored sample went through the full order pipeline.
   const sponsoredPost = await pg.query<{ id: string }>("select id from public.posts where type = 'sponsored' limit 1");
   const order = await pg.query<{ id: string }>(
