@@ -1,3 +1,4 @@
+import { MIN_INDEXABLE_TAG_POSTS } from "@coingist/types";
 import type {
   AuthorProfile,
   Category,
@@ -6,6 +7,7 @@ import type {
   PostSummary,
   PostType,
   RichTextDoc,
+  SitemapData,
   TagRef,
 } from "@coingist/types";
 import type { Database, Queryable } from "./database.js";
@@ -29,6 +31,8 @@ export interface ContentRepository {
   getCategory(slug: string): Promise<Category | null>;
   getTag(slug: string): Promise<TagRef | null>;
   getAuthor(slug: string): Promise<AuthorProfile | null>;
+  /** All live posts and listing pages, for XML sitemaps (capped at Google's 50,000 URLs). */
+  sitemap(): Promise<SitemapData>;
 }
 
 type SummaryRow = {
@@ -185,6 +189,56 @@ export function createContentRepository(db: Database): ContentRepository {
           slug,
         ]);
         return rows[0] ?? null;
+      }),
+
+    sitemap: () =>
+      anon(async (sql) => {
+        const posts = await sql.query<{
+          type: PostType; slug: string; title: string; published_at: Date; updated_at: Date;
+          is_sponsored: boolean; tags: string[] | null;
+        }>(
+          `select p.type, p.slug, p.title, p.published_at, p.updated_at, p.is_sponsored,
+             (select array_agg(t.name order by t.name) from public.post_tags pt
+                join public.tags t on t.id = pt.tag_id where pt.post_id = p.id) as tags
+           from public.posts p
+           where p.status = 'published' and p.published_at <= now()
+           order by p.published_at desc limit 50000`,
+        );
+        const categories = await sql.query<{ slug: string; last: Date | null }>(
+          `select c.slug, max(p.published_at) as last from public.categories c
+           left join public.posts p on p.category_id = c.id
+             and p.status = 'published' and p.published_at <= now()
+           group by c.slug order by c.slug`,
+        );
+        const authors = await sql.query<{ slug: string; last: Date | null }>(
+          `select a.slug, max(p.published_at) as last from public.author_directory a
+           left join public.posts p on p.author_id = a.user_id
+             and p.status = 'published' and p.published_at <= now()
+           group by a.slug order by a.slug`,
+        );
+        const tags = await sql.query<{ slug: string; last: Date }>(
+          `select t.slug, max(p.published_at) as last from public.tags t
+           join public.post_tags pt on pt.tag_id = t.id
+           join public.posts p on p.id = pt.post_id
+             and p.status = 'published' and p.published_at <= now()
+           group by t.slug having count(*) >= $1 order by t.slug`,
+          [MIN_INDEXABLE_TAG_POSTS],
+        );
+        const isoOrNull = (d: Date | null) => (d ? iso(d) : null);
+        return {
+          posts: posts.map((p) => ({
+            type: p.type,
+            slug: p.slug,
+            title: p.title,
+            publishedAt: iso(p.published_at),
+            updatedAt: iso(p.updated_at),
+            isSponsored: p.is_sponsored,
+            tags: p.tags ?? [],
+          })),
+          categories: categories.map((c) => ({ slug: c.slug, lastPublishedAt: isoOrNull(c.last) })),
+          authors: authors.map((a) => ({ slug: a.slug, lastPublishedAt: isoOrNull(a.last) })),
+          tags: tags.map((t) => ({ slug: t.slug, lastPublishedAt: iso(t.last) })),
+        };
       }),
 
     getAuthor: (slug) =>

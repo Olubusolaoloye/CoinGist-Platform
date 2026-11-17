@@ -123,6 +123,12 @@ describe("JSON-LD", () => {
     });
   });
 
+  it("marks sponsored posts as advertiser content with the sponsor", () => {
+    const ld = newsArticleJsonLd(site, { ...post, isSponsored: true, sponsor: { name: "ExamplePay", website: "https://example.com" } });
+    expect(ld).toMatchObject({ "@type": "AdvertiserContentArticle", sponsor: { "@type": "Organization", name: "ExamplePay" } });
+    expect(newsArticleJsonLd(site, post)["@type"]).toBe("NewsArticle");
+  });
+
   it("uses the organisation as author when there is no byline", () => {
     const ld = newsArticleJsonLd(site, { ...post, author: null });
     expect(ld["author"]).toEqual([{ "@type": "Organization", name: "CoinGist", url: "https://coingist.test/" }]);

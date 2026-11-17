@@ -33,6 +33,9 @@ export function SiteFooter({ categories }: { categories: Category[] }) {
             <li><Link to="/learn" className="hover:underline">Learn</Link></li>
             <li><Link to="/africa" className="hover:underline">Africa</Link></li>
             <li><Link to="/newsletter" className="hover:underline">Newsletters</Link></li>
+            <li><Link to="/about" className="hover:underline">About</Link></li>
+            <li><Link to="/editorial-policy" className="hover:underline">Editorial policy</Link></li>
+            <li><a href="/rss.xml" className="hover:underline">RSS feed</a></li>
           </ul>
         </nav>
         <nav aria-label="Topics in footer">

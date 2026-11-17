@@ -3,7 +3,12 @@ import type { Route } from "./+types/section";
 import { ListingPage } from "~/components/ListingPage";
 import { api, assertPageInRange, cached, pageParam } from "~/lib/api.server";
 import { siteConfig } from "~/lib/config.server";
-import { LISTABLE_SECTIONS, SECTION_INTRO, SECTION_LABEL, type ListableSection } from "~/lib/format";
+import {
+  LISTABLE_SECTIONS,
+  SECTION_INTRO,
+  SECTION_LABEL,
+  type ListableSection,
+} from "~/lib/format";
 import { passLoaderHeaders } from "~/lib/headers";
 import { pagedPath } from "~/lib/seo";
 
@@ -23,19 +28,29 @@ export function meta({ data }: Route.MetaArgs) {
   const { site, section, list } = data;
   const label = SECTION_LABEL[section];
   const path = `/${section}`;
-  return buildMeta({
-    site,
-    path,
-    canonical: pagedPath(path, list.page),
-    title: list.page > 1 ? `${label}, page ${list.page}` : label,
-    description: SECTION_INTRO[section],
-    jsonLd: [
-      breadcrumbJsonLd(site, [
-        { name: "Home", path: "/" },
-        { name: label, path },
-      ]),
-    ],
-  });
+  const feedLink = {
+    tagName: "link" as const,
+    rel: "alternate",
+    type: "application/rss+xml",
+    title: `${label} | CoinGist`,
+    href: `/${section}/rss.xml`,
+  };
+  return [
+    ...buildMeta({
+      site,
+      path,
+      canonical: pagedPath(path, list.page),
+      title: list.page > 1 ? `${label}, page ${list.page}` : label,
+      description: SECTION_INTRO[section],
+      jsonLd: [
+        breadcrumbJsonLd(site, [
+          { name: "Home", path: "/" },
+          { name: label, path },
+        ]),
+      ],
+    }),
+    feedLink,
+  ];
 }
 
 export default function Section({ loaderData }: Route.ComponentProps) {

@@ -15,27 +15,30 @@ import { BottomNav } from "./components/BottomNav";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
-import { siteConfig } from "./lib/config.server";
+import { isDemo, siteConfig } from "./lib/config.server";
 import { readTheme } from "./lib/theme.server";
+import { useNonce } from "./lib/nonce";
 import "./app.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preload", href: fontUrl, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
   { rel: "apple-touch-icon", href: "/logo-512.png" },
+  { rel: "alternate", type: "application/rss+xml", title: "CoinGist", href: "/rss.xml" },
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
   const site = siteConfig();
   // Navigation must not take the whole site down if the API hiccups.
   const categories = await api.listCategories().catch(() => []);
-  return data({ site, categories, theme: readTheme(request) });
+  return data({ site, categories, theme: readTheme(request), demo: isDemo() });
 }
 
 // Font face is declared inline so its URL comes from the build (hashed, cacheable).
 const fontFace = `@font-face{font-family:"Bricolage Grotesque";font-style:normal;font-display:swap;font-weight:200 800;src:url(${fontUrl}) format("woff2");unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}`;
 
 export function Layout({ children }: { children: React.ReactNode }) {
+  const nonce = useNonce();
   const root = useRouteLoaderData<typeof loader>("root");
   const theme = root?.theme ?? "system";
   return (
@@ -44,7 +47,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#1b1f5e" />
-        <style dangerouslySetInnerHTML={{ __html: fontFace }} />
+        <style nonce={nonce} dangerouslySetInnerHTML={{ __html: fontFace }} />
         <Meta />
         <Links />
       </head>
@@ -55,14 +58,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
         >
           Skip to content
         </a>
+        {root?.demo ? (
+          <p className="bg-gist px-4 py-2 text-center text-sm font-semibold text-gist-ink">
+            Preview with fictional sample content. These aren't real stories.
+          </p>
+        ) : null}
         <SiteHeader categories={root?.categories ?? []} theme={theme} />
         <div id="main" tabIndex={-1} className="outline-none">
           {children}
         </div>
         <SiteFooter categories={root?.categories ?? []} />
         <BottomNav />
-        <ScrollRestoration />
-        <Scripts />
+        <ScrollRestoration nonce={nonce} />
+        <Scripts nonce={nonce} />
       </body>
     </html>
   );

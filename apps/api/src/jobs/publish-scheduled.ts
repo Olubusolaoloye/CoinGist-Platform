@@ -3,7 +3,8 @@
  * (e.g. a Netlify scheduled function or Cloudflare Cron Trigger):
  *   pnpm --filter @coingist/api job:publish-scheduled
  */
-import { createPgDatabase, publishDueScheduled } from "@coingist/db";
+import { publishDueScheduled } from "@coingist/db";
+import { createPgDatabase } from "@coingist/db/pg";
 
 const url = process.env["DATABASE_URL"];
 if (!url) throw new Error("DATABASE_URL is required");

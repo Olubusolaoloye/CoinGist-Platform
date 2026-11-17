@@ -1,18 +1,48 @@
+import { randomBytes } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
-import { assertEnv } from "./lib/env.server";
+import { NonceContext } from "./lib/nonce";
+import { assertEnv, env } from "./lib/env.server";
 
 // Fail fast on a misconfigured deployment (e.g. dev sign-in enabled in production).
 assertEnv();
 
 export const streamTimeout = 5_000;
 
+/**
+ * Strict script CSP for Studio. Inline styles are allowed because the editor (ProseMirror)
+ * sets style attributes itself; scripts still need this request's nonce.
+ * form-action allows the Supabase/Google sign-in redirects. Production only.
+ */
+function contentSecurityPolicy(nonce: string, https: boolean): string {
+  const authOrigins = [env.supabaseUrl ? new URL(env.supabaseUrl).origin : "", "https://accounts.google.com"].filter(Boolean);
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: https:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'none'",
+    "object-src 'none'",
+    `form-action 'self' ${authOrigins.join(" ")}`,
+    ...(https ? ["upgrade-insecure-requests"] : []),
+  ].join("; ");
+}
+
+
 /** Response headers for every Studio HTML document. */
-function applyDocumentHeaders(headers: Headers, status: number) {
+function applyDocumentHeaders(headers: Headers, status: number, nonce: string, request: Request) {
   headers.set("Content-Type", "text/html; charset=utf-8");
+  if (process.env["NODE_ENV"] === "production") {
+    const https = new URL(request.url).protocol === "https:" || request.headers.get("x-forwarded-proto") === "https";
+    headers.set("Content-Security-Policy", contentSecurityPolicy(nonce, https));
+  }
   // Studio is private: never cached anywhere, never indexed, never framed.
   headers.set("Cache-Control", "no-store");
   headers.set("X-Robots-Tag", "noindex, nofollow");
@@ -29,8 +59,9 @@ export default function handleRequest(
   responseHeaders: Headers,
   routerContext: EntryContext,
 ) {
+  const nonce = randomBytes(16).toString("base64");
   if (request.method.toUpperCase() === "HEAD") {
-    applyDocumentHeaders(responseHeaders, responseStatusCode);
+    applyDocumentHeaders(responseHeaders, responseStatusCode, nonce, request);
     return new Response(null, { status: responseStatusCode, headers: responseHeaders });
   }
 
@@ -47,8 +78,11 @@ export default function handleRequest(
     );
 
     const { pipe, abort } = renderToPipeableStream(
-      <ServerRouter context={routerContext} url={request.url} />,
+      <NonceContext.Provider value={nonce}>
+        <ServerRouter context={routerContext} url={request.url} nonce={nonce} />
+      </NonceContext.Provider>,
       {
+        nonce,
         [readyOption]() {
           shellRendered = true;
           const body = new PassThrough({
@@ -58,7 +92,7 @@ export default function handleRequest(
               callback();
             },
           });
-          applyDocumentHeaders(responseHeaders, responseStatusCode);
+          applyDocumentHeaders(responseHeaders, responseStatusCode, nonce, request);
           pipe(body);
           resolve(
             new Response(createReadableStreamFromReadable(body), {
