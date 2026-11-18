@@ -7,8 +7,9 @@ import { DomainError, type Repositories } from "@coingist/db";
 import type { TokenVerifier } from "./auth.js";
 import type { NewsletterProvider } from "./newsletter/provider.js";
 import type { AppEnv } from "./context.js";
-import { authenticate, authFailureLimit, rateLimit } from "./middleware.js";
+import { authenticate, authFailureLimit, rateLimit, requirePermission } from "./middleware.js";
 import { adminRoutes } from "./routes/admin.js";
+import { aiRoutes, type AiDeps } from "./routes/ai.js";
 import { commerceRoutes, publicAdRoutes } from "./routes/commerce.js";
 import { meRoutes } from "./routes/me.js";
 import { newsletterAdminRoutes, newsletterPublicRoutes, newsletterWebhookRoutes } from "./routes/newsletter.js";
@@ -23,6 +24,8 @@ export interface AppDeps {
   newsletter: NewsletterProvider;
   /** Svix signing secret for newsletter webhooks (whsec_...). */
   newsletterWebhookSecret?: string | undefined;
+  /** AI assist. Leave out to switch it off (Studio then says it isn't set up). */
+  ai?: AiDeps | undefined;
 }
 
 const DOMAIN_STATUS = { forbidden: 403, not_found: 404, conflict: 409, invalid: 422 } as const;
@@ -76,6 +79,13 @@ export function createApp(deps: AppDeps) {
   app.route("/v1/admin/subscribers", newsletterAdminRoutes(deps.newsletter));
   app.route("/v1/me", meRoutes);
   app.route("/v1/admin", adminRoutes);
+  if (deps.ai) app.route("/v1/studio/ai", aiRoutes(deps.ai));
+  else {
+    app.get("/v1/studio/ai/status", requirePermission("ai:use"), (c) => c.json({ provider: null, model: null, quota: null }));
+    app.all("/v1/studio/ai/*", requirePermission("ai:use"), (c) =>
+      c.json({ error: { code: "ai_off", message: "AI assist isn't set up on this server. Ask an admin to add an Anthropic API key." } }, 503),
+    );
+  }
   app.route("/v1/studio", studioRoutes);
   app.route("/v1/studio", commerceRoutes);
 

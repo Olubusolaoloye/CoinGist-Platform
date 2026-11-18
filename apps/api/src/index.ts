@@ -5,6 +5,7 @@ import { createApp } from "./app.js";
 import { createTokenVerifier } from "./auth.js";
 import { loadEnv } from "./env.js";
 import { newsletterProviderFromEnv } from "./newsletter/from-env.js";
+import { aiDepsFromEnv } from "./ai/from-env.js";
 
 const env = loadEnv();
 const db = createPgDatabase(env.DATABASE_URL);
@@ -18,6 +19,7 @@ const app = createApp({
   corsOrigins: env.CORS_ORIGINS,
   newsletter: newsletterProviderFromEnv(env),
   newsletterWebhookSecret: env.BEEHIIV_WEBHOOK_SECRET,
+  ai: aiDepsFromEnv(env),
 });
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {

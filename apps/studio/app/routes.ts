@@ -5,6 +5,7 @@ export default [
   route("logout", "routes/logout.ts"),
   route("auth/callback", "routes/auth.callback.ts"),
   route("mfa", "routes/mfa.tsx"),
+  route("ai", "routes/ai.ts"),
   layout("routes/app.tsx", [
     index("routes/app.index.tsx"),
     route("dashboard", "routes/app.dashboard.tsx"),
@@ -22,6 +23,7 @@ export default [
     route("sponsored/:id", "routes/app.sponsored.$id.tsx"),
     route("ads", "routes/app.ads.tsx"),
     route("link-safety", "routes/app.link-safety.tsx"),
+    route("trending", "routes/app.trending.tsx"),
   ]),
   route("*", "routes/not-found.tsx"),
 ] satisfies RouteConfig;

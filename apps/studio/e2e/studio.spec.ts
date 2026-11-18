@@ -368,6 +368,22 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
     await check("editor");
   });
 
+  test("AI assist panel and trending digest", async ({ page }) => {
+    const check = async (label: string) => {
+      const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(r.violations.map((v) => `${label} ${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
+    };
+    await signIn(page, EDITOR);
+    await createPost(page, `A11y AI ${Date.now()}`);
+    const ai = page.getByRole("region", { name: "AI assist" });
+    for (const tab of ["Outline", "Gist", "SEO", "Links", "Check", "Share"]) {
+      await ai.getByRole("tab", { name: tab }).click();
+      await check(`ai ${tab}`);
+    }
+    await page.goto("/trending");
+    await check("trending");
+  });
+
   test("admin pages and writer earnings", async ({ page }) => {
     const check = async (label: string) => {
       const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
@@ -490,5 +506,86 @@ test.describe("dashboards", () => {
     await me.getByRole("combobox").selectOption("editor");
     await me.getByRole("button", { name: /Save role/ }).click();
     await expect(page.getByRole("alert")).toHaveText(/at least one admin/);
+  });
+});
+
+test.describe("AI assist (offline sample provider)", () => {
+  const BODY =
+    "Stablecoin transfers rose 40% in Nigeria last quarter, according to traders in Lagos. " +
+    "Fees for sending money home are the main reason people are switching. " +
+    "Regulators are drafting rules for exchanges, and some say this token offers guaranteed returns. " +
+    "The central bank has not commented on the figures yet.";
+
+  async function storyWithBody(page: Page) {
+    await signIn(page, WRITER);
+    await createPost(page, `AI test ${Date.now()}`);
+    await page.locator(".ProseMirror").click();
+    await page.keyboard.type(BODY);
+    await save(page);
+    return page.getByRole("region", { name: "AI assist" });
+  }
+
+  test("suggests a gist the writer chooses to use, and flags the story AI-assisted", async ({ page }) => {
+    const ai = await storyWithBody(page);
+    await expect(ai.getByText(/Sample mode/)).toBeVisible();
+    await ai.getByRole("tab", { name: "Gist" }).click();
+    await ai.getByRole("button", { name: "Suggest the gist" }).click();
+    await expect(ai.getByRole("listitem").first()).toContainText("Stablecoin transfers rose 40%");
+    // Using AI doesn't change the story by itself: still saved, but now flagged.
+    await expect(page.getByRole("status").first()).toHaveText("All changes saved");
+    await expect(page.getByRole("checkbox", { name: /AI tools helped write this/ })).toBeChecked();
+    await ai.getByRole("button", { name: "Use as the gist" }).click();
+    await expect(ai.getByRole("status")).toHaveText(/Gist added/);
+    await expect(page.getByRole("status").first()).toHaveText("Unsaved changes");
+    await save(page);
+    await page.reload();
+    await expect(page.getByRole("checkbox", { name: /AI tools helped write this/ })).toBeChecked();
+    await expect(page.getByRole("checkbox", { name: /AI tools helped write this/ })).toBeDisabled();
+    await page.getByRole("region", { name: "AI assist" }).getByText(/AI used on this story/).click();
+    await expect(page.getByRole("region", { name: "AI assist" })).toContainText("Gist in 30 seconds by Amara Okafor");
+  });
+
+  test("outline goes into the story only when asked; checks run on the text", async ({ page }) => {
+    const ai = await storyWithBody(page);
+    await ai.getByLabel("Your notes").fill("Traders in Lagos say fees fell. Exchanges expect new rules next month.");
+    await ai.getByRole("button", { name: "Suggest an outline" }).click();
+    await expect(ai.getByText("What happened")).toBeVisible();
+    await expect(page.locator(".ProseMirror h2")).toHaveCount(0);
+    await ai.getByRole("button", { name: "Add outline to the end of the story" }).click();
+    await expect(page.locator(".ProseMirror h2").first()).toHaveText("What happened");
+
+    await ai.getByRole("tab", { name: "Check" }).click();
+    await expect(ai.getByText("Breaks the editorial policy")).toBeVisible();
+    await expect(ai).toContainText('"guaranteed returns"');
+    await ai.getByRole("button", { name: "Check claims with AI" }).click();
+    await expect(ai.locator("q").first()).toContainText("rose 40%");
+
+    await ai.getByRole("tab", { name: "Links" }).click();
+    await expect(ai.getByRole("button", { name: /Copy link to "/ }).first()).toBeVisible();
+
+    await ai.getByRole("tab", { name: "Share" }).click();
+    await ai.getByLabel("Format").selectOption("x_thread");
+    await ai.getByRole("button", { name: "Write a x thread" }).click();
+    await expect(ai.getByRole("listitem").last()).toContainText(/Read the full story: http:\/\/localhost:\d+\/news\/ai-test-/);
+  });
+
+  test("editors get a trending digest that can start a story; writers can't", async ({ page }) => {
+    await signIn(page, WRITER);
+    await expect(page.getByRole("link", { name: "Trending" })).toHaveCount(0);
+    await page.goto("/trending");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("You don't have access to this");
+    await signOut(page);
+
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Trending" }).click();
+    // No feeds are configured locally, so the digest needs notes.
+    await page.getByRole("button", { name: "Build the digest" }).click();
+    await expect(page.getByRole("alert")).toContainText("No news feeds are configured");
+    await page.getByLabel(/Anything else on your radar/).fill("Kenya is consulting on new exchange licensing rules.");
+    await page.getByRole("button", { name: "Build the digest" }).click();
+    const topic = page.getByRole("listitem").filter({ hasText: "Kenya is consulting" }).first();
+    await expect(topic).toBeVisible();
+    await topic.getByRole("link", { name: /Start a story/ }).click();
+    await expect(page.getByLabel("Headline")).toHaveValue(/Kenya is consulting on new exchange licensing rules/);
   });
 });

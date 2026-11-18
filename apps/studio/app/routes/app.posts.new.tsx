@@ -13,7 +13,9 @@ export function meta() {
 
 export async function loader({ request }: Route.LoaderArgs) {
   await requireAuth(request);
-  return null;
+  // A suggested headline (e.g. from the trending digest) pre-fills the form; you still edit and confirm it.
+  const title = (new URL(request.url).searchParams.get("title") ?? "").slice(0, 300);
+  return { title };
 }
 
 export async function action({ request }: Route.ActionArgs) {
@@ -34,7 +36,7 @@ const TYPE_HELP: Record<string, string> = {
   sponsored: "Paid content. Always labelled as sponsored.",
 };
 
-export default function NewPost({ actionData }: Route.ComponentProps) {
+export default function NewPost({ loaderData, actionData }: Route.ComponentProps) {
   const busy = useNavigation().state !== "idle";
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
@@ -42,7 +44,7 @@ export default function NewPost({ actionData }: Route.ComponentProps) {
       <Form method="post" className="mt-6 space-y-5">
         <div>
           <label htmlFor="title" className="label">Headline</label>
-          <input id="title" name="title" required maxLength={300} className="field text-lg" autoFocus />
+          <input id="title" name="title" required maxLength={300} className="field text-lg" autoFocus defaultValue={loaderData.title} />
           <p className="hint">You can change it later. The URL slug is made from it.</p>
         </div>
         <fieldset>

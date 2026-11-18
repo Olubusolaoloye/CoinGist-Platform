@@ -39,6 +39,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
               {hasAtLeast(role, "editor") ? <li><NavLink to="/dashboard" className={nav}>Dashboard</NavLink></li> : null}
               <li><NavLink to="/posts" end className={nav}>Posts</NavLink></li>
               {hasAtLeast(role, "editor") ? <li><NavLink to="/review" className={nav}>Review queue</NavLink></li> : null}
+              {hasAtLeast(role, "editor") ? <li><NavLink to="/trending" className={nav}>Trending</NavLink></li> : null}
               {can(role, "sponsored:manage") ? <li><NavLink to="/sponsored" className={nav}>Sponsored</NavLink></li> : null}
               {can(role, "ads:manage") ? <li><NavLink to="/ads" className={nav}>Ads</NavLink></li> : null}
               <li><NavLink to="/link-safety" className={nav}>Link safety</NavLink></li>
