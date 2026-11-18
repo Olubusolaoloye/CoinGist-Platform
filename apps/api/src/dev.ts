@@ -9,6 +9,9 @@ import { createNewsletterRepository, createPgRepositories, publishDueScheduled }
 import { seedDevData } from "@coingist/db/dev-seed";
 import { createPgliteDatabase } from "@coingist/db/pglite";
 import { createApp } from "./app.js";
+import { createClaudeProvider } from "./ai/claude.js";
+import { createOfflineProvider } from "./ai/offline.js";
+import { DEFAULT_DAILY_LIMITS } from "./routes/ai.js";
 import { createTokenVerifier } from "./auth.js";
 import { createDevNewsletterProvider } from "./newsletter/dev-provider.js";
 import { syncPending } from "./newsletter/sync.js";
@@ -34,6 +37,15 @@ const app = createApp({
   newsletter,
   // Lets you try the webhook locally with a Svix-signed request (see README).
   newsletterWebhookSecret: DEV_WEBHOOK_SECRET,
+  // Real Claude if you set ANTHROPIC_API_KEY; otherwise the offline sample generator.
+  ai: {
+    provider: process.env["ANTHROPIC_API_KEY"]
+      ? createClaudeProvider({ apiKey: process.env["ANTHROPIC_API_KEY"], model: process.env["AI_MODEL"] })
+      : createOfflineProvider(),
+    dailyLimits: DEFAULT_DAILY_LIMITS,
+    trendingFeeds: (process.env["TRENDING_FEEDS"] ?? "").split(",").map((s) => s.trim()).filter(Boolean),
+    siteUrl: process.env["SITE_URL"] ?? "http://localhost:5173",
+  },
 });
 
 /** Seeded accounts the dev sign-in page offers. */

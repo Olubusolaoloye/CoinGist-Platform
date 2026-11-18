@@ -28,7 +28,7 @@ export function fakeNewsletter() {
   return { provider, calls };
 }
 
-export async function setup(opts: { rateLimit?: { windowMs: number; max: number } } = {}) {
+export async function setup(opts: { rateLimit?: { windowMs: number; max: number }; ai?: import("../src/routes/ai.js").AiDeps } = {}) {
   const t = await createTestDb();
   const newsletter = fakeNewsletter();
   const app = createApp({

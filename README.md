@@ -201,6 +201,35 @@ Webhooks need a paid Beehiiv plan.
   Every step is in the audit log.
 - **My earnings** (`/earnings`): writers see only their own payments (RLS).
 
+## AI assist (step 7)
+
+Studio only. Every result is a **suggestion with an explicit "use" button**: nothing the model
+writes is saved, published or posted on its own, and stories still go through review.
+
+- **In the editor (AI assist panel):** outline and draft from the writer's notes (using only what
+  they provide; gaps come back as `[CHECK: ...]`), "the gist in 30 seconds", SEO title /
+  description / slug / excerpt, internal links (related published stories, no AI request), a
+  style and readability check (instant, no AI: reading ease, long sentences, passive voice,
+  unexplained jargon, and hype or promises that break the editorial policy) plus an AI claim
+  check, and repurposing as an X thread, Telegram post or newsletter blurb (copy only).
+- **Trending digest** (`/trending`, editors): reads the RSS/Atom feeds in `TRENDING_FEEDS`, groups
+  headlines into topics with an African angle, flags what CoinGist already covered, and can start
+  a draft with a suggested headline.
+- **Disclosure:** using any AI feature on a story logs it (`ai_usage`) and marks the story
+  `ai_assisted` in the database. The flag can't be cleared, and the article says so to readers.
+  Editors see who used which feature on a story.
+- **Server-side and limited:** the browser never calls the model. The API checks `ai:use`
+  (staff, 2FA), that you can see the story, a per-person daily limit (`AI_DAILY_LIMIT_*`, resets
+  at midnight UTC) and a burst limit (12 a minute). Declines and outages are reported plainly and
+  don't count against the limit.
+- **Guardrails on output:** structured outputs (JSON schema) from Claude; lengths enforced after;
+  claim quotes that don't appear in the story and links that didn't come from the feeds are
+  dropped. The writer's text is passed as data inside tags, never as instructions.
+- **Model:** Claude via the Anthropic SDK (`claude-opus-5-5` by default, `AI_MODEL` to change), with
+  server-side refusal fallbacks. Without `ANTHROPIC_API_KEY`, AI is off in production; locally and
+  in tests an offline generator that only rearranges the writer's own words stands in, and
+  Studio labels it "Sample mode".
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.

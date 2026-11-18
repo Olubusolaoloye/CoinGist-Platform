@@ -7,9 +7,11 @@ import type {
   Revision,
   RevisionSummary,
   StudioPost,
+  RichTextNode,
   TagRef,
 } from "@coingist/types";
 import type { Route } from "./+types/app.posts.$id";
+import { AiPanel } from "~/components/AiPanel";
 import { CommentsPanel } from "~/components/CommentsPanel";
 import { DetailsPanel } from "~/components/DetailsPanel";
 import { RichEditor } from "~/components/editor/RichEditor";
@@ -182,6 +184,21 @@ function EditPost({ post, comments, revisions, taxonomy, blocked, siteUrl }: Rou
 
   const deleter = useFetcher();
 
+  // AI suggestions are appended to the end of the body; reload the editor with the new content.
+  const appendToBody = useCallback((nodes: RichTextNode[]) => {
+    setDraft((d) => ({ ...d, body: { ...d.body, content: [...(d.body.content ?? []), ...nodes] } }));
+    setEditorKey((k) => `${k.split(":ai")[0]}:ai${Date.now()}`);
+  }, []);
+  // The server flags the story as AI-assisted when AI is used on it; mirror that in the form
+  // and in the saved baseline, so it doesn't show as an unsaved change.
+  const onAiUsed = useCallback(() => {
+    setDraft((d) => (d.aiAssisted ? d : { ...d, aiAssisted: true }));
+    setSaved((f) => {
+      const base = JSON.parse(f) as Record<string, unknown>;
+      return base["aiAssisted"] ? f : JSON.stringify({ ...base, aiAssisted: true });
+    });
+  }, []);
+
   return (
     <main className="mx-auto max-w-7xl px-4 py-6">
       {blocker.state === "blocked" ? (
@@ -240,6 +257,7 @@ function EditPost({ post, comments, revisions, taxonomy, blocked, siteUrl }: Rou
         <aside className="space-y-4" aria-label="Post settings">
           <WorkflowPanel post={post} actions={actions} dirty={dirty} blocked={blocked} />
           <DetailsPanel draft={draft} set={set} editable={editable} categories={taxonomy.categories} tags={taxonomy.tags} canFeature={hasAtLeast(me.user.role, "editor")} />
+          <AiPanel postId={post.id} draft={draft} set={set} editable={editable} published={post.status === "published"} siteUrl={siteUrl} onAppendToBody={appendToBody} onAiUsed={onAiUsed} />
           <SeoPanel draft={draft} set={set} editable={editable} siteUrl={siteUrl} />
           <CommentsPanel comments={comments} />
           <HistoryPanel revisions={revisions} canRestore={editable} dirty={dirty} onRestore={() => { reloadFromServer.current = true; }} />
