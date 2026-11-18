@@ -151,7 +151,8 @@ describe("users table", () => {
   it("hides other users' rows from readers and anon", async () => {
     const rows = await t.db.asUser(reader.claims, (q) => q.query("select id from public.users"));
     expect(rows).toEqual([{ id: reader.id }]);
-    expect(await t.db.asUser(null, (q) => q.query("select id from public.users"))).toEqual([]);
+    // Signed out: no access to the table at all (not even an empty result).
+    await expect(t.db.asUser(null, (q) => q.query("select id from public.users"))).rejects.toThrow(/permission denied/);
   });
 
   it("exposes bylines through author_directory without emails", async () => {

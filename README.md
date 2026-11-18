@@ -264,6 +264,15 @@ writes is saved, published or posted on its own, and stories still go through re
 - **CI and updates:** GitHub Actions runs typecheck, unit tests, build and both Playwright suites
   on every pull request; Dependabot opens weekly grouped dependency updates.
 
+## Supabase project
+
+All migrations in `supabase/migrations` are applied to the project in order. Newer Supabase projects
+don't grant the API roles any access to new tables, so `..._explicit_grants.sql` grants exactly what
+each role needs (row-level security still decides which rows); the local test database mirrors
+those stricter defaults. `..._advisor_hardening.sql` addresses the security advisor's findings.
+What the advisor still lists is intentional: the two byline/sponsor directory views, the public ad
+click counter, and the staff RPCs, each of which checks the caller's role and MFA itself.
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.
