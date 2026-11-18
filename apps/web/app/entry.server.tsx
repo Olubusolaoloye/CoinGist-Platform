@@ -10,6 +10,9 @@ import { assertReaderAuthConfig, readerAuthMode } from "./lib/reader.server";
 // Fail fast on a misconfigured deployment (e.g. dev reader sign-in in production).
 assertReaderAuthConfig();
 import { NonceContext } from "./lib/nonce";
+import { initMonitoring, reportError } from "./lib/monitoring.server";
+
+initMonitoring("web");
 
 export const streamTimeout = 5_000;
 
@@ -114,4 +117,10 @@ export default function handleRequest(
       },
     );
   });
+}
+
+/** Unexpected loader/action/render errors (not aborted requests) are reported. */
+export function handleError(error: unknown, { request }: { request: Request }) {
+  if (request.signal.aborted) return;
+  reportError(error, { url: new URL(request.url).pathname, method: request.method });
 }

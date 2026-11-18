@@ -423,7 +423,7 @@ test.describe("content security policy", () => {
 
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/search?q=stablecoin", "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/advertise", "/privacy", "/terms", "/search?q=stablecoin", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);
@@ -434,4 +434,38 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
       });
     }
   }
+});
+
+test.describe("launch pages and price ticker", () => {
+  test("advertise, privacy and terms are linked from the footer, indexable and in the sitemap", async ({ page, request }) => {
+    for (const [name, path, heading] of [
+      ["Advertise", "/advertise", "Advertise with CoinGist"],
+      ["Privacy", "/privacy", "Privacy policy"],
+      ["Terms", "/terms", "Terms of use"],
+    ] as const) {
+      await page.goto("/");
+      await page.getByRole("contentinfo").getByRole("link", { name, exact: true }).click();
+      await expect(page).toHaveURL(path);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /index, follow/);
+    }
+    const sitemap = await (await request.get("/sitemap-pages.xml")).text();
+    for (const path of ["/advertise", "/privacy", "/terms"]) expect(sitemap).toContain(`https://coingist.test${path}</loc>`);
+  });
+
+  test("privacy policy names the cookies the site actually sets", async ({ page }) => {
+    await page.goto("/privacy");
+    for (const name of ["theme", "cg_signed_in", "Plausible", "Beehiiv", "Supabase"]) await expect(page.locator("main")).toContainText(name);
+  });
+
+  test("the price ticker shows labelled sample prices with direction in words", async ({ page }) => {
+    await page.goto("/");
+    const ticker = page.getByRole("region", { name: "Crypto prices" });
+    await expect(ticker).toBeVisible();
+    await expect(ticker.getByRole("listitem")).toHaveCount(6);
+    await expect(ticker.getByRole("listitem").first()).toContainText("BTC");
+    await expect(ticker.getByRole("listitem").first()).toContainText("$64,000");
+    await expect(ticker.getByRole("listitem").first()).toContainText("up 1.8%");
+    await expect(ticker.getByRole("listitem").nth(1)).toContainText("down 0.9%");
+  });
 });

@@ -24,3 +24,9 @@ export function analyticsConfig(): { domain: string; src: string; origin: string
   const src = process.env["PLAUSIBLE_SCRIPT_URL"] ?? "https://plausible.io/js/script.js";
   return { domain, src, origin: new URL(src).origin };
 }
+
+/** Where readers, advertisers and data requests should write. Unset: pages say to use the About page. */
+export function contactEmails(): { general: string | null; advertising: string | null } {
+  const general = process.env["CONTACT_EMAIL"] || null;
+  return { general, advertising: process.env["ADVERTISING_EMAIL"] || general };
+}

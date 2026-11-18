@@ -6,6 +6,7 @@ import type {
   PostDetail,
   PostSummary,
   PostType,
+  PriceTicker,
   PublicAdSlot,
   SitemapData,
   TagRef,
@@ -101,6 +102,15 @@ export const api = {
   },
   async sitemap(): Promise<SitemapData> {
     return (await get<SitemapData>("/sitemap"))!;
+  },
+  /** The price ticker never breaks a page: on any error (or no source), there's no strip. */
+  async prices(): Promise<PriceTicker | null> {
+    try {
+      const res = await apiFetch("/v1/public/prices", { headers: { accept: "application/json" }, signal: AbortSignal.timeout(3000) });
+      return res.ok ? ((await res.json()) as PriceTicker) : null;
+    } catch {
+      return null;
+    }
   },
   async getAuthor(slug: string): Promise<AuthorProfile> {
     return (await get<{ author: AuthorProfile }>(`/authors/${encodeURIComponent(slug)}`))!.author;

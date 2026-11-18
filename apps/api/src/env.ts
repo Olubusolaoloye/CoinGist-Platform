@@ -25,6 +25,10 @@ const EnvSchema = z
       .default("")
       .transform((s) => s.split(",").map((u) => u.trim()).filter(Boolean))
       .pipe(z.array(z.string().url().startsWith("https://", "Feeds must use https"))),
+    /** Price ticker source: CoinGecko (default), built-in sample data, or off. */
+    PRICES_PROVIDER: z.enum(["coingecko", "sample", "off"]).default("coingecko"),
+    COINGECKO_API_KEY: z.string().min(1).optional(),
+    COINGECKO_BASE_URL: z.string().url().optional(),
     CORS_ORIGINS: z
       .string()
       .default("")

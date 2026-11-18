@@ -8,6 +8,7 @@ import { SignJWT } from "jose";
 import { createApp } from "@coingist/api/app";
 import { createTokenVerifier } from "@coingist/api/auth";
 import { createDevNewsletterProvider } from "@coingist/api/newsletter/dev-provider";
+import { cachedTicker, createSamplePriceProvider } from "@coingist/api/prices";
 import { createPgRepositories } from "@coingist/db";
 import { seedDevData } from "@coingist/db/dev-seed";
 import { MIGRATIONS, SHIM_SQL } from "@coingist/db/dev-sql";
@@ -30,6 +31,7 @@ async function init(): Promise<Demo> {
     verifyToken: createTokenVerifier({ supabaseUrl: ISSUER, jwtSecret: secret.toString("hex") }),
     corsOrigins: [],
     newsletter: createDevNewsletterProvider(),
+    prices: cachedTicker(createSamplePriceProvider()),
   });
   const createReader = async () => {
     const email = `reader-${randomBytes(6).toString("hex")}@demo.invalid`;

@@ -13,6 +13,9 @@
   --gist: #ffc72c;
   --gist-ink: #1b1f5e;
   --bad: #b3261e;
+  /* Price moves (always paired with an arrow and words). */
+  --up: #1d6b3a;
+  --down: #b3261e;
   /* Always-dark surfaces (footer, banners), the same in both themes. */
   --night: #14163f;
   --night-ink: #eef0fb;
@@ -29,6 +32,8 @@
   --gist: #ffc72c;
   --gist-ink: #14163f;
   --bad: #ff9b93;
+  --up: #7fd89c;
+  --down: #ff9b93;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -41,6 +46,9 @@
     --link: #b4b9ff;
     --gist: #ffc72c;
     --gist-ink: #14163f;
+    --bad: #ff9b93;
+    --up: #7fd89c;
+    --down: #ff9b93;
     color-scheme: dark;
   }
 }
@@ -55,6 +63,8 @@
   --color-gist: var(--gist);
   --color-gist-ink: var(--gist-ink);
   --color-bad: var(--bad);
+  --color-up: var(--up);
+  --color-down: var(--down);
   --color-night: var(--night);
   --color-night-ink: var(--night-ink);
   --color-night-muted: var(--night-muted);
