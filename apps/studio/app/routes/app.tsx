@@ -21,7 +21,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 }
 
 const nav = ({ isActive }: { isActive: boolean }) =>
-  `rounded-md px-3 py-2 text-sm font-semibold hover:bg-line ${isActive ? "bg-line" : ""}`;
+  `rounded-md px-2.5 py-2 text-sm font-semibold hover:bg-line ${isActive ? "bg-line" : ""}`;
 
 export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const { me } = loaderData;
@@ -30,11 +30,13 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     <div className="min-h-dvh">
       <header className="border-b border-line bg-surface">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-          <NavLink to="/posts" className="mr-2">
+          <NavLink to="/" className="mr-2">
             <Wordmark />
           </NavLink>
           <nav aria-label="Studio" className="order-3 w-full sm:order-none sm:w-auto">
             <ul className="flex flex-wrap gap-1">
+              {role === "admin" ? <li><NavLink to="/admin" className={nav}>Admin</NavLink></li> : null}
+              {hasAtLeast(role, "editor") ? <li><NavLink to="/dashboard" className={nav}>Dashboard</NavLink></li> : null}
               <li><NavLink to="/posts" end className={nav}>Posts</NavLink></li>
               {hasAtLeast(role, "editor") ? <li><NavLink to="/review" className={nav}>Review queue</NavLink></li> : null}
               {can(role, "sponsored:manage") ? <li><NavLink to="/sponsored" className={nav}>Sponsored</NavLink></li> : null}
@@ -42,6 +44,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
               <li><NavLink to="/link-safety" className={nav}>Link safety</NavLink></li>
               {can(role, "subscribers:manage") ? <li><NavLink to="/subscribers" className={nav}>Subscribers</NavLink></li> : null}
               {can(role, "audit:view") ? <li><NavLink to="/audit" className={nav}>Audit log</NavLink></li> : null}
+              {role !== "admin" && can(role, "payments:view_own") ? <li><NavLink to="/earnings" className={nav}>My earnings</NavLink></li> : null}
             </ul>
           </nav>
           <div className="ml-auto flex items-center gap-3">

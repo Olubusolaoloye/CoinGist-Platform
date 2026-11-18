@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
+  CalendarQuerySchema,
   CommentInputSchema,
   CreatePostInputSchema,
   PostStatusSchema,
@@ -27,6 +28,12 @@ export const studioRoutes = new Hono<AppEnv>()
     await next();
     c.header("Cache-Control", "no-store");
   })
+  .get("/dashboard", requirePermission("post:review"), zValidator("query", CalendarQuerySchema), async (c) =>
+    c.json({ dashboard: await c.var.repos.insights.editorDashboard(c.var.claims!, { from: c.req.valid("query").from }) }),
+  )
+  .get("/earnings", requirePermission("payments:view_own"), async (c) =>
+    c.json({ earnings: await c.var.repos.insights.myEarnings(c.var.claims!) }),
+  )
   .get("/posts", requirePermission("post:create"), zValidator("query", ListQuery), async (c) => {
     const q = c.req.valid("query");
     const list = await c.var.repos.studio.listPosts(c.var.claims!, {

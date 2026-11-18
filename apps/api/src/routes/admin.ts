@@ -1,7 +1,13 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { RoleSchema, UserStatusSchema } from "@coingist/types";
+import {
+  PaymentCreateSchema,
+  PaymentListQuerySchema,
+  PaymentUpdateSchema,
+  RoleSchema,
+  UserStatusSchema,
+} from "@coingist/types";
 import type { AppEnv } from "../context.js";
 import { requirePermission } from "../middleware.js";
 
@@ -17,6 +23,31 @@ const AuditQuery = z.object({
 });
 
 export const adminRoutes = new Hono<AppEnv>()
+  .use("*", async (c, next) => {
+    await next();
+    c.header("Cache-Control", "no-store");
+  })
+  .get("/dashboard", requirePermission("user:manage_roles"), async (c) =>
+    c.json({ dashboard: await c.var.repos.insights.adminDashboard(c.var.claims!) }),
+  )
+  // Writer payouts
+  .get("/payments", requirePermission("payments:manage"), zValidator("query", PaymentListQuerySchema), async (c) =>
+    c.json({ payments: await c.var.repos.insights.listPayments(c.var.claims!, c.req.valid("query")) }),
+  )
+  .get("/payments/unpaid-stories", requirePermission("payments:manage"), async (c) =>
+    c.json({ stories: await c.var.repos.insights.unpaidStories(c.var.claims!) }),
+  )
+  .post("/payments", requirePermission("payments:manage"), zValidator("json", PaymentCreateSchema), async (c) =>
+    c.json({ payment: await c.var.repos.insights.createPayment(c.var.claims!, c.req.valid("json")) }, 201),
+  )
+  .patch(
+    "/payments/:id",
+    requirePermission("payments:manage"),
+    zValidator("param", IdParam),
+    zValidator("json", PaymentUpdateSchema),
+    async (c) =>
+      c.json({ payment: await c.var.repos.insights.updatePayment(c.var.claims!, c.req.valid("param").id, c.req.valid("json")) }),
+  )
   .get("/users", requirePermission("user:manage_roles"), zValidator("query", Paging), async (c) => {
     const users = await c.var.repos.users.list(c.var.claims!, c.req.valid("query"));
     return c.json({ users });

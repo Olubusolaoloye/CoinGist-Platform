@@ -182,6 +182,25 @@ Webhooks need a paid Beehiiv plan.
   `noindex` and cached briefly at the CDN.
 - **Read time** on cards is the body word count divided by 220, at least one minute.
 
+## Dashboards and payouts (Studio)
+
+- **Home by role:** admins land on Admin, editors on the editor dashboard, writers on their posts.
+- **Editor dashboard** (`/dashboard`, editors and admins): counts by status; the review queue
+  (oldest first, never your own stories); approved stories waiting for a slot; drafts untouched
+  for a week; a two-week editorial calendar (scheduled and published, UTC, page by week);
+  stories published per day for 30 days (with a table view); section mix; and per-writer activity.
+- **Admin** (`/admin`, admins only): team by role, staff without 2FA, money owed to writers,
+  sponsorship in progress, outstanding invoices, live ads, a "needs attention" list and recent
+  audit events. Money in different currencies is never added together.
+- **Team and roles** (`/admin/team`): change roles and suspend or reactivate accounts. The
+  database refuses to demote the last admin, and admins can't suspend themselves.
+- **Payouts** (`/admin/payouts`): record a payment for a published story (or a bonus), approve
+  it, then mark it paid. Enforced in Postgres (`writer_payments_guard`): pending -> approved ->
+  paid, or cancelled; paid is final; the amount locks on approval; a story is paid once (unless
+  cancelled); the story must be published and written by that writer; payments are never deleted.
+  Every step is in the audit log.
+- **My earnings** (`/earnings`): writers see only their own payments (RLS).
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.

@@ -48,7 +48,7 @@ export interface StudioRepository {
 const iso = (d: Date | string | null) =>
   d === null ? null : (d instanceof Date ? d : new Date(d)).toISOString();
 
-type SummaryRow = {
+export type SummaryRow = {
   id: string;
   type: PostType;
   title: string;
@@ -65,7 +65,7 @@ type SummaryRow = {
   total?: number;
 };
 
-const SUMMARY_SQL = `
+export const SUMMARY_SQL = `
   select p.id, p.type, p.title, p.slug, p.status, p.author_id, u.name as author_name,
          c.slug as category_slug, c.name as category_name,
          p.updated_at, p.scheduled_for, p.published_at,
@@ -75,7 +75,7 @@ const SUMMARY_SQL = `
   left join public.users u on u.id = p.author_id
   left join public.categories c on c.id = p.category_id`;
 
-const toSummary = (r: SummaryRow): StudioPostSummary => ({
+export const toSummary = (r: SummaryRow): StudioPostSummary => ({
   id: r.id,
   type: r.type,
   title: r.title,
