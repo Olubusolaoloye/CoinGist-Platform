@@ -10,6 +10,7 @@ import { GistBox } from "~/components/GistBox";
 import { NewsletterSignup } from "~/components/NewsletterSignup";
 import { StoryList } from "~/components/PostCard";
 import { PostImage } from "~/components/PostImage";
+import { FollowButton, SaveButton } from "~/components/ReaderButtons";
 import { ShareBar } from "~/components/ShareBar";
 import { SponsoredBadge } from "~/components/SponsoredBadge";
 import { api, cached } from "~/lib/api.server";
@@ -123,6 +124,10 @@ export default function Article({ loaderData }: Route.ComponentProps) {
               </span>
             ) : null}
             <span className="text-muted">{readMinutes} min read</span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <SaveButton postId={post.id} title={post.title} />
+            {post.author ? <FollowButton type="author" slug={post.author.slug} name={post.author.name} postId={post.id} showName /> : null}
           </div>
         </header>
 

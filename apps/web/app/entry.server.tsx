@@ -5,6 +5,10 @@ import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
 import { analyticsConfig } from "./lib/config.server";
+import { assertReaderAuthConfig, readerAuthMode } from "./lib/reader.server";
+
+// Fail fast on a misconfigured deployment (e.g. dev reader sign-in in production).
+assertReaderAuthConfig();
 import { NonceContext } from "./lib/nonce";
 
 export const streamTimeout = 5_000;
@@ -28,7 +32,8 @@ function contentSecurityPolicy(nonce: string, https: boolean): string {
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "object-src 'none'",
-    "form-action 'self'",
+    // Reader sign-in with Google redirects through Supabase after a form post.
+    `form-action 'self' ${readerAuthMode() === "supabase" && process.env["SUPABASE_URL"] ? `${new URL(process.env["SUPABASE_URL"]).origin} https://accounts.google.com` : ""}`.trim(),
     ...(https ? ["upgrade-insecure-requests"] : []),
   ].join("; ");
 }

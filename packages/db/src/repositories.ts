@@ -5,6 +5,7 @@ import { createContentRepository, type ContentRepository } from "./content.js";
 import { createInsightsRepository, type InsightsRepository } from "./insights.js";
 import type { Database, SessionClaims } from "./database.js";
 import { createNewsletterRepository, type NewsletterRepository } from "./newsletter.js";
+import { createReaderRepository, type ReaderRepository } from "./readers.js";
 import { createStudioRepository, type StudioRepository } from "./studio.js";
 import { mapDbError } from "./errors.js";
 
@@ -21,6 +22,7 @@ export interface Repositories {
   content: ContentRepository;
   insights: InsightsRepository;
   newsletter: NewsletterRepository;
+  readers: ReaderRepository;
   studio: StudioRepository;
   users: {
     findById(id: string): Promise<User | null>;
@@ -91,6 +93,7 @@ export function createPgRepositories(db: Database): Repositories {
     content: createContentRepository(db),
     insights: createInsightsRepository(db),
     newsletter: createNewsletterRepository(db),
+    readers: createReaderRepository(db),
     studio: createStudioRepository(db),
     users: {
       findById: (id) =>

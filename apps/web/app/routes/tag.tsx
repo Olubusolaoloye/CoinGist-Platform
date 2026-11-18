@@ -1,6 +1,7 @@
 import { breadcrumbJsonLd, buildMeta } from "@coingist/seo";
 import type { Route } from "./+types/tag";
 import { ListingPage } from "~/components/ListingPage";
+import { FollowButton } from "~/components/ReaderButtons";
 import { api, assertPageInRange, cached, pageParam } from "~/lib/api.server";
 import { siteConfig } from "~/lib/config.server";
 import { passLoaderHeaders } from "~/lib/headers";
@@ -52,6 +53,7 @@ export default function TagPage({ loaderData }: Route.ComponentProps) {
         { name: tag.name, path },
       ]}
       list={list}
+      action={<FollowButton type="tag" slug={tag.slug} name={tag.name} />}
       emptyText={`Nothing tagged ${tag.name} yet.`}
     />
   );
