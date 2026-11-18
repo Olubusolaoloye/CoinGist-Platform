@@ -18,7 +18,7 @@ import {
 } from "@coingist/types";
 import type { Database, Queryable, SessionClaims } from "./database.js";
 import { DomainError, mapDbError } from "./errors.js";
-import { SUMMARY_SQL, toSummary, type SummaryRow } from "./studio.js";
+import { STUDIO_SUMMARY_SQL, toStudioSummary, type StudioSummaryRow } from "./studio.js";
 
 /**
  * Dashboards and writer payouts. Every call runs as the signed-in staff member, so RLS decides
@@ -101,7 +101,7 @@ export function createInsightsRepository(db: Database): InsightsRepository {
         )) counts[r.status] = r.n;
 
         const summaries = async (where: string, order: string, params: unknown[] = []) =>
-          (await q.query<SummaryRow>(`${SUMMARY_SQL} where ${where} order by ${order} limit 8`, params)).map(toSummary);
+          (await q.query<StudioSummaryRow>(`${STUDIO_SUMMARY_SQL} where ${where} order by ${order} limit 8`, params)).map(toStudioSummary);
 
         const reviewQueue = await summaries("p.status = 'in_review' and p.author_id <> $1", "p.updated_at asc", [actor.sub]);
         const readyToSchedule = await summaries("p.status = 'approved'", "p.approved_at asc nulls last");

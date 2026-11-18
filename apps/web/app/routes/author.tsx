@@ -4,6 +4,7 @@ import type { Route } from "./+types/author";
 import { Breadcrumbs } from "~/components/Breadcrumbs";
 import { Pagination } from "~/components/Pagination";
 import { StoryList } from "~/components/PostCard";
+import { FollowButton } from "~/components/ReaderButtons";
 import { api, assertPageInRange, cached, pageParam } from "~/lib/api.server";
 import { siteConfig } from "~/lib/config.server";
 import { passLoaderHeaders } from "~/lib/headers";
@@ -88,7 +89,10 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
           </div>
         )}
         <div>
-          <h1 className="font-display text-4xl font-extrabold tracking-tight">{author.name}</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-display text-4xl font-extrabold tracking-tight">{author.name}</h1>
+            <FollowButton type="author" slug={author.slug} name={author.name} />
+          </div>
           {author.bio ? <p className="mt-2 max-w-[60ch] text-lg text-muted">{author.bio}</p> : null}
           {author.expertise.length > 0 ? (
             <div className="mt-3">

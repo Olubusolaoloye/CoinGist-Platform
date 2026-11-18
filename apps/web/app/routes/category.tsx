@@ -2,6 +2,7 @@ import { redirect } from "react-router";
 import { breadcrumbJsonLd, buildMeta } from "@coingist/seo";
 import type { Route } from "./+types/category";
 import { ListingPage } from "~/components/ListingPage";
+import { FollowButton } from "~/components/ReaderButtons";
 import { api, assertPageInRange, cached, pageParam } from "~/lib/api.server";
 import { siteConfig } from "~/lib/config.server";
 import { passLoaderHeaders } from "~/lib/headers";
@@ -66,6 +67,7 @@ export default function CategoryPage({ loaderData }: Route.ComponentProps) {
         { name: category.name, path },
       ]}
       list={list}
+      action={<FollowButton type="category" slug={category.slug} name={category.name} />}
       emptyText={`No ${category.name} stories yet. Check back soon.`}
     />
   );

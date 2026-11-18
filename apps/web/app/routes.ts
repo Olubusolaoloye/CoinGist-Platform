@@ -12,6 +12,14 @@ export default [
   route("newsletter", "routes/newsletter.tsx"),
   route("about", "routes/about.tsx"),
   route("search", "routes/search.tsx"),
+  // Reader accounts (private, never cached).
+  route("for-you", "routes/for-you.tsx"),
+  route("account", "routes/account.tsx"),
+  route("account/login", "routes/account.login.tsx"),
+  route("account/callback", "routes/account.callback.ts"),
+  route("account/logout", "routes/account.logout.ts"),
+  route("account/state", "routes/account.state.ts"),
+  route("account/actions", "routes/account.actions.ts"),
   route("go/ad/:id", "routes/go.ad.ts"),
   route("editorial-policy", "routes/editorial-policy.tsx"),
   // Feeds and crawler files (resource routes: no HTML).

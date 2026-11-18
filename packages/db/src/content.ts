@@ -39,7 +39,7 @@ export interface ContentRepository {
   sitemap(): Promise<SitemapData>;
 }
 
-type SummaryRow = {
+export type SummaryRow = {
   id: string;
   type: PostType;
   slug: string;
@@ -73,7 +73,7 @@ type DetailRow = SummaryRow & {
 
 const iso = (d: Date | string) => (d instanceof Date ? d.toISOString() : new Date(d).toISOString());
 
-const SUMMARY_SELECT = `
+export const SUMMARY_SELECT = `
   p.id, p.type, p.slug, p.title, p.excerpt, p.hero_image_url, p.hero_image_alt,
   p.published_at, p.updated_at, p.is_sponsored,
   c.slug as category_slug, c.name as category_name,
@@ -82,13 +82,13 @@ const SUMMARY_SELECT = `
   greatest(1, round(coalesce(array_length(regexp_split_to_array(
     trim(jsonb_path_query_array(p.body_json, 'lax $.**.text')::text), '\s+'), 1), 0) / 220.0))::int as read_minutes`;
 
-const SUMMARY_FROM = `
+export const SUMMARY_FROM = `
   from public.posts p
   left join public.categories c on c.id = p.category_id
   left join public.author_directory a on a.user_id = p.author_id
   left join public.sponsor_directory s on s.id = p.sponsor_id`;
 
-function toSummary(r: SummaryRow): PostSummary {
+export function toSummary(r: SummaryRow): PostSummary {
   return {
     id: r.id,
     type: r.type,

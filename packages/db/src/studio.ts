@@ -48,7 +48,7 @@ export interface StudioRepository {
 const iso = (d: Date | string | null) =>
   d === null ? null : (d instanceof Date ? d : new Date(d)).toISOString();
 
-export type SummaryRow = {
+export type StudioSummaryRow = {
   id: string;
   type: PostType;
   title: string;
@@ -65,7 +65,7 @@ export type SummaryRow = {
   total?: number;
 };
 
-export const SUMMARY_SQL = `
+export const STUDIO_SUMMARY_SQL = `
   select p.id, p.type, p.title, p.slug, p.status, p.author_id, u.name as author_name,
          c.slug as category_slug, c.name as category_name,
          p.updated_at, p.scheduled_for, p.published_at,
@@ -75,7 +75,7 @@ export const SUMMARY_SQL = `
   left join public.users u on u.id = p.author_id
   left join public.categories c on c.id = p.category_id`;
 
-export const toSummary = (r: SummaryRow): StudioPostSummary => ({
+export const toStudioSummary = (r: StudioSummaryRow): StudioPostSummary => ({
   id: r.id,
   type: r.type,
   title: r.title,
@@ -227,24 +227,24 @@ export function createStudioRepository(db: Database): StudioRepository {
   return {
     listPosts: (actor, { status, mine, page, pageSize }) =>
       as(actor, async (q) => {
-        const rows = await q.query<SummaryRow>(
-          `select *, count(*) over ()::int as total from (${SUMMARY_SQL}
+        const rows = await q.query<StudioSummaryRow>(
+          `select *, count(*) over ()::int as total from (${STUDIO_SUMMARY_SQL}
              where ($1::public.post_status is null or p.status = $1)
                and (not $2::boolean or p.author_id = $3)) s
            order by updated_at desc limit $4 offset $5`,
           [status ?? null, mine ?? false, actor.sub, pageSize, (page - 1) * pageSize],
         );
-        return { items: rows.map(toSummary), page, pageSize, total: rows[0]?.total ?? 0 };
+        return { items: rows.map(toStudioSummary), page, pageSize, total: rows[0]?.total ?? 0 };
       }),
 
     reviewQueue: (actor) =>
       as(actor, async (q) => {
-        const rows = await q.query<SummaryRow>(
-          `${SUMMARY_SQL} where p.status = 'in_review' and p.author_id <> $1
+        const rows = await q.query<StudioSummaryRow>(
+          `${STUDIO_SUMMARY_SQL} where p.status = 'in_review' and p.author_id <> $1
            order by p.updated_at asc limit 100`,
           [actor.sub],
         );
-        return rows.map(toSummary);
+        return rows.map(toStudioSummary);
       }),
 
     getPost: (actor, id) => as(actor, (q) => loadPost(q, id)),

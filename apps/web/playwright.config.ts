@@ -31,6 +31,9 @@ export default defineConfig({
         SITE_URL: "https://coingist.test",
         // Every test signs up from the same machine; the limiter has its own unit test.
         NEWSLETTER_SIGNUPS_PER_10_MIN: "1000",
+        // Reader sign-in picks a seeded account from the local API.
+        READER_AUTH: "dev",
+        READER_SIGNINS_PER_10_MIN: "1000",
       },
       url: `http://localhost:${WEB_PORT}`,
       reuseExistingServer: false,

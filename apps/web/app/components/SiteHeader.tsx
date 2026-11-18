@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import type { Category } from "@coingist/types";
+import { useSignedIn } from "./ReaderButtons";
 import { ThemeToggle, type ThemePref } from "./ThemeToggle";
 import { Wordmark } from "./Wordmark";
 
@@ -22,6 +23,8 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
   }, [location.pathname]);
 
   const strip = categories.filter((c) => c.slug !== "africa");
+  // Personal links are decided in the browser, so this cached header is the same for everyone.
+  const signedIn = useSignedIn();
 
   return (
     <header className="border-b border-line bg-surface">
@@ -50,6 +53,15 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
           </svg>
         </Link>
         <ThemeToggle pref={theme} />
+        <Link
+          to={signedIn ? "/for-you" : "/account/login"}
+          aria-label={signedIn ? "Your feed and account" : "Sign in"}
+          className="inline-flex size-11 items-center justify-center rounded-md hover:bg-line"
+        >
+          <svg viewBox="0 0 24 24" className="size-5" fill={signedIn ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
+          </svg>
+        </Link>
         <Link
           to="/newsletter"
           className="hidden min-h-10 items-center rounded-full bg-gist px-4 text-sm font-bold text-gist-ink hover:opacity-90 sm:inline-flex"
@@ -82,6 +94,14 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
             <Link to="/newsletter" className="mt-2 block rounded-md bg-gist px-2 py-2 font-semibold text-gist-ink">
               Get the newsletter
             </Link>
+            {signedIn ? (
+              <div className="mt-2 grid grid-cols-2 gap-1">
+                <Link to="/for-you" className="block rounded-md px-2 py-2 font-semibold hover:bg-line">For you</Link>
+                <Link to="/account" className="block rounded-md px-2 py-2 font-semibold hover:bg-line">Saved and following</Link>
+              </div>
+            ) : (
+              <Link to="/account/login" className="mt-2 block rounded-md px-2 py-2 font-semibold hover:bg-line">Sign in to save stories</Link>
+            )}
             <p className="mt-4 text-sm font-semibold text-muted">Topics</p>
             <ul className="mt-1 grid grid-cols-2 gap-1">
               {strip.map((c) => (

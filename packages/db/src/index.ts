@@ -7,5 +7,6 @@ export * from "./database.js";
 export * from "./errors.js";
 export * from "./insights.js";
 export * from "./newsletter.js";
+export * from "./readers.js";
 export * from "./repositories.js";
 export * from "./studio.js";

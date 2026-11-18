@@ -230,6 +230,25 @@ writes is saved, published or posted on its own, and stories still go through re
   in tests an offline generator that only rearranges the writer's own words stands in, and
   Studio labels it "Sample mode".
 
+## Reader accounts (step 8)
+
+- **Sign in** at `/account/login`: email magic link or Google (Supabase Auth); signing in creates a
+  reader account. Locally you pick a seeded account; preview deploys give each visitor a
+  throwaway demo reader. Without Supabase settings, production shows "coming soon".
+- **Save stories** (bookmark button on every article), **follow** writers, topics and tags (buttons on
+  articles, writer, topic and tag pages), and read **For you** (`/for-you`): new stories from what
+  you follow, newest first, each labelled with why it's there. Manage everything at `/account`,
+  including "clear my saved stories and follows".
+- **Caching stays intact:** public pages never read the session, so the CDN serves the same HTML
+  to everyone. A non-secret `cg_signed_in` cookie tells the page's JavaScript to fetch the reader's
+  button states from `/account/state` (private, no-store). `/account*` and `/for-you` are
+  `private, no-store` and `noindex`.
+- **Security:** reader routes in the API (`/v1/me/*`) need a signed-in active account (no 2FA for
+  readers); RLS keeps every row to its owner; triggers allow bookmarks only on published stories,
+  follows only of real writers/topics/tags, and cap them (1,000 saved, 100 follows). Account form
+  posts are same-origin only, and sign-in attempts are rate limited per IP. Buttons work with
+  JavaScript; the account page's controls also work without it.
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.
