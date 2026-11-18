@@ -7,3 +7,4 @@ export * from "./studio.js";
 export * from "./url.js";
 export * from "./newsletter.js";
 export * from "./commerce.js";
+export * from "./insights.js";

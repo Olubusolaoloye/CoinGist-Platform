@@ -7,6 +7,11 @@ export default [
   route("mfa", "routes/mfa.tsx"),
   layout("routes/app.tsx", [
     index("routes/app.index.tsx"),
+    route("dashboard", "routes/app.dashboard.tsx"),
+    route("admin", "routes/app.admin.tsx"),
+    route("admin/team", "routes/app.admin.team.tsx"),
+    route("admin/payouts", "routes/app.admin.payouts.tsx"),
+    route("earnings", "routes/app.earnings.tsx"),
     route("posts", "routes/app.posts.tsx"),
     route("posts/new", "routes/app.posts.new.tsx"),
     route("posts/:id", "routes/app.posts.$id.tsx"),

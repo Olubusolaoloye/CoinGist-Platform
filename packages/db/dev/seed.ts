@@ -272,6 +272,29 @@ export async function seedDevData(pg: PGlite): Promise<void> {
     [sponsor.rows[0]!.id],
   );
 
+  // Writer payouts at each stage (fictional amounts). Inserted as pending, then moved through
+  // the life cycle so the guard trigger and audit log see the same steps an admin would take.
+  const payStages: Array<[string, string, string, string[]]> = [
+    ["amara", "120.00", "USD", ["approved", "paid"]],
+    ["amara", "45000.00", "NGN", ["approved"]],
+    ["kwame", "95.00", "USD", []],
+  ];
+  for (const [i, [author, amount, currency, steps]] of payStages.entries()) {
+    const post = await pg.query<{ id: string }>(
+      `select id from public.posts where author_id = $1 and status = 'published'
+       order by published_at desc offset $2 limit 1`,
+      [userIds[author], i === 1 ? 1 : 0],
+    );
+    if (!post.rows[0]) continue;
+    const pay = await pg.query<{ id: string }>(
+      "insert into public.writer_payments (writer_id, post_id, amount, currency) values ($1, $2, $3, $4) returning id",
+      [userIds[author], post.rows[0].id, amount, currency],
+    );
+    for (const s of steps) {
+      await pg.query("update public.writer_payments set status = $2::public.payment_status where id = $1", [pay.rows[0]!.id, s]);
+    }
+  }
+
   // Seeded rows were inserted at "now"; backdate updated_at to match publish times.
   // The updated_at trigger would stamp "now", so switch it off for this one statement.
   await pg.exec(`

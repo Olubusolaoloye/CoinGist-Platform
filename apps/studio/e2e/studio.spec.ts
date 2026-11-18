@@ -6,10 +6,14 @@ const WRITER = "Amara Okafor";
 const EDITOR = "Tunde Bello";
 const ADMIN = "Dev Admin";
 
+const HOME: Record<string, RegExp> = { [WRITER]: /\/posts$/, [EDITOR]: /\/dashboard$/, [ADMIN]: /\/admin$/ };
+
+/** Signs in and lands on Posts (each role's own home page is checked in "dashboards"). */
 async function signIn(page: Page, name: string) {
   await page.goto("/login");
   await page.getByRole("button", { name: new RegExp(`Sign in as ${name}`) }).click();
-  await expect(page).toHaveURL(/\/posts$/);
+  await expect(page).toHaveURL(HOME[name] ?? /\/posts$/);
+  await page.goto("/posts");
 }
 
 async function signOut(page: Page) {
@@ -351,6 +355,8 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
     await page.goto("/login");
     await check("login");
     await page.getByRole("button", { name: `Sign in as ${EDITOR}` }).click();
+    await check("editor dashboard");
+    await page.goto("/posts");
     await check("posts");
     await page.getByRole("link", { name: "Review queue" }).click();
     await check("review");
@@ -360,5 +366,129 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
     }
     await createPost(page, `A11y ${Date.now()}`);
     await check("editor");
+  });
+
+  test("admin pages and writer earnings", async ({ page }) => {
+    const check = async (label: string) => {
+      const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+      expect(r.violations.map((v) => `${label} ${v.id}: ${v.nodes.map((n) => n.target).join(", ")}`)).toEqual([]);
+    };
+    await signIn(page, ADMIN);
+    for (const path of ["/admin", "/admin/team", "/admin/payouts", "/dashboard"]) {
+      await page.goto(path);
+      await check(path);
+    }
+    await signOut(page);
+    await signIn(page, WRITER);
+    await page.goto("/earnings");
+    await check("/earnings");
+  });
+});
+
+test.describe("dashboards", () => {
+  test("each role lands on its own home page", async ({ page }) => {
+    for (const [name, home] of Object.entries(HOME)) {
+      await page.goto("/login");
+      await page.getByRole("button", { name: new RegExp(`Sign in as ${name}`) }).click();
+      await expect(page).toHaveURL(home);
+      await signOut(page);
+    }
+  });
+
+  test("editor dashboard: queues, calendar weeks and writer table", async ({ page }) => {
+    await page.goto("/login");
+    await page.getByRole("button", { name: `Sign in as ${EDITOR}` }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Editor dashboard");
+    await expect(page.getByRole("region", { name: "Review queue" })).toBeVisible();
+    const cal = page.getByRole("region", { name: "Editorial calendar" });
+    await expect(cal.getByRole("listitem").filter({ hasText: "Today" })).toHaveCount(1);
+    await expect(cal.locator("ol > li")).toHaveCount(14);
+    await cal.getByRole("link", { name: "Next week" }).click();
+    await expect(page).toHaveURL(/\?from=\d{4}-\d{2}-\d{2}$/);
+    await expect(cal.getByRole("listitem").filter({ hasText: "Today" })).toHaveCount(0);
+    await expect(page.getByRole("region", { name: "Writers" }).getByRole("rowheader", { name: /Amara Okafor/ })).toBeVisible();
+    await page.getByText("Show as a table").click();
+    await expect(page.getByRole("region", { name: /Published per day/ }).getByRole("table")).toBeVisible();
+  });
+
+  test("writers and editors can't open admin pages; writers can't open the editor dashboard", async ({ page }) => {
+    await signIn(page, WRITER);
+    for (const link of ["Admin", "Dashboard"]) await expect(page.getByRole("link", { name: link, exact: true })).toHaveCount(0);
+    for (const path of ["/dashboard", "/admin", "/admin/team", "/admin/payouts"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("You don't have access to this");
+    }
+    await signOut(page);
+    await signIn(page, EDITOR);
+    await expect(page.getByRole("link", { name: "Admin", exact: true })).toHaveCount(0);
+    for (const path of ["/admin", "/admin/payouts"]) {
+      await page.goto(path);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("You don't have access to this");
+    }
+  });
+
+  test("admin records, approves and pays a writer, who then sees it under My earnings", async ({ page }) => {
+    page.on("dialog", (d) => d.accept());
+    const note = `E2E bonus ${Date.now()}`;
+    await signIn(page, ADMIN);
+    await page.goto("/admin");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Admin");
+    await page.getByRole("link", { name: "Payouts", exact: true }).click();
+
+    const other = page.getByRole("region", { name: "Other payment" });
+    await other.getByLabel("Writer").selectOption({ label: WRITER });
+    await other.getByLabel("Amount").fill("12.5");
+    await other.getByLabel("Currency").fill("usd");
+    await other.getByLabel("Note").fill(note);
+    await other.getByRole("button", { name: "Record payment" }).click();
+    await expect(page.getByRole("status")).toHaveText(/Payment recorded/);
+
+    const row = page.getByRole("row").filter({ hasText: note });
+    await expect(row).toContainText("$12.50");
+    await row.getByRole("button", { name: /^Approve/ }).click();
+    await expect(page.getByRole("status")).toHaveText("Payment approved.");
+    await row.getByRole("button", { name: /^Mark paid/ }).click();
+    await expect(page.getByRole("status")).toHaveText("Marked as paid.");
+    await expect(row).toContainText("Paid");
+    await expect(row.getByRole("button")).toHaveCount(0);
+
+    // Recording a payment for a published story takes it off the unpaid list.
+    const unpaid = page.getByRole("region", { name: "Published, not yet paid" });
+    const first = unpaid.getByRole("listitem").first();
+    const title = (await first.locator("p").first().textContent())!;
+    await first.getByRole("textbox", { name: /Amount/ }).fill("40");
+    await first.getByRole("button", { name: /Record payment/ }).click();
+    await expect(page.getByRole("status")).toHaveText(/Payment recorded/);
+    await expect(unpaid.getByText(title, { exact: true })).toHaveCount(0);
+
+    await signOut(page);
+    await signIn(page, WRITER);
+    await page.getByRole("link", { name: "My earnings" }).click();
+    await expect(page.getByRole("row").filter({ hasText: note })).toContainText("Paid");
+  });
+
+  test("admin changes a role and suspends an account, and can't lock themselves out", async ({ page }) => {
+    page.on("dialog", (d) => d.accept());
+    await signIn(page, ADMIN);
+    await page.goto("/admin/team");
+    const reader = page.getByRole("row").filter({ hasText: "Sample Reader" });
+    await reader.getByRole("combobox", { name: "Role for Sample Reader" }).selectOption("writer");
+    await reader.getByRole("button", { name: "Save role for Sample Reader" }).click();
+    await expect(page.getByRole("status")).toHaveText("Sample Reader is now writer.");
+    await expect(reader.getByText("Not set up")).toBeVisible(); // staff without 2FA are flagged
+    await reader.getByRole("combobox", { name: "Role for Sample Reader" }).selectOption("reader");
+    await reader.getByRole("button", { name: "Save role for Sample Reader" }).click();
+    await expect(page.getByRole("status")).toHaveText("Sample Reader is now reader.");
+
+    await reader.getByRole("button", { name: "Suspend Sample Reader" }).click();
+    await expect(page.getByRole("status")).toHaveText(/suspended/);
+    await reader.getByRole("button", { name: "Reactivate Sample Reader" }).click();
+    await expect(page.getByRole("status")).toHaveText("Sample Reader is active again.");
+
+    const me = page.getByRole("row").filter({ hasText: "(you)" });
+    await expect(me.getByRole("button", { name: /Suspend/ })).toHaveCount(0);
+    await me.getByRole("combobox").selectOption("editor");
+    await me.getByRole("button", { name: /Save role/ }).click();
+    await expect(page.getByRole("alert")).toHaveText(/at least one admin/);
   });
 });
