@@ -6,12 +6,14 @@ import {
   PaymentListQuerySchema,
   PaymentUpdateSchema,
   RoleSchema,
+  UpdateCategoryInputSchema,
   UserStatusSchema,
 } from "@coingist/types";
 import type { AppEnv } from "../context.js";
 import { requirePermission } from "../middleware.js";
 
 const IdParam = z.object({ id: z.string().uuid() });
+const SlugParam = z.object({ slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100) });
 const Paging = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
@@ -29,6 +31,20 @@ export const adminRoutes = new Hono<AppEnv>()
   })
   .get("/dashboard", requirePermission("user:manage_roles"), async (c) =>
     c.json({ dashboard: await c.var.repos.insights.adminDashboard(c.var.claims!) }),
+  )
+  // Site images: category covers
+  .get("/categories", requirePermission("site:manage"), async (c) =>
+    c.json({ categories: await c.var.repos.studio.listCategoryDetails(c.var.claims!) }),
+  )
+  .patch(
+    "/categories/:slug",
+    requirePermission("site:manage"),
+    zValidator("param", SlugParam),
+    zValidator("json", UpdateCategoryInputSchema),
+    async (c) => {
+      const category = await c.var.repos.studio.updateCategory(c.var.claims!, c.req.valid("param").slug, c.req.valid("json"));
+      return category ? c.json({ category }) : c.json({ error: { code: "not_found", message: "Not found" } }, 404);
+    },
   )
   // Writer payouts
   .get("/payments", requirePermission("payments:manage"), zValidator("query", PaymentListQuerySchema), async (c) =>

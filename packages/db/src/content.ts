@@ -108,6 +108,23 @@ export function toSummary(r: SummaryRow): PostSummary {
   };
 }
 
+interface CategoryRow {
+  slug: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+}
+
+function toCategory(r: CategoryRow): Category {
+  return {
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    image: r.image_url ? { url: r.image_url, alt: r.image_alt ?? "" } : null,
+  };
+}
+
 export function createContentRepository(db: Database): ContentRepository {
   const anon = <T>(fn: (q: Queryable) => Promise<T>) => db.asUser(null, fn).catch(mapDbError);
 
@@ -184,19 +201,21 @@ export function createContentRepository(db: Database): ContentRepository {
 
     listCategories: () =>
       anon((sql) =>
-        sql.query<Category>(
-          `select slug, name, description from public.categories
-           where parent_id is null order by sort_order, name`,
-        ),
+        sql
+          .query<CategoryRow>(
+            `select slug, name, description, image_url, image_alt from public.categories
+             where parent_id is null order by sort_order, name`,
+          )
+          .then((rows) => rows.map(toCategory)),
       ),
 
     getCategory: (slug) =>
       anon(async (sql) => {
-        const rows = await sql.query<Category>(
-          "select slug, name, description from public.categories where slug = $1",
+        const rows = await sql.query<CategoryRow>(
+          "select slug, name, description, image_url, image_alt from public.categories where slug = $1",
           [slug],
         );
-        return rows[0] ?? null;
+        return rows[0] ? toCategory(rows[0]) : null;
       }),
 
     getTag: (slug) =>

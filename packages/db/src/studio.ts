@@ -1,6 +1,7 @@
 import {
   sanitizeRichText,
   slugify,
+  type Category,
   type CategoryRef,
   type CommentInput,
   type CreatePostInput,
@@ -15,6 +16,7 @@ import {
   type StudioPostSummary,
   type TagRef,
   type TransitionInput,
+  type UpdateCategoryInput,
   type UpdatePostInput,
 } from "@coingist/types";
 import type { Database, Queryable, SessionClaims } from "./database.js";
@@ -43,6 +45,10 @@ export interface StudioRepository {
   getRevision(actor: SessionClaims, revisionId: string): Promise<Revision | null>;
   listCategories(actor: SessionClaims): Promise<CategoryRef[]>;
   listTags(actor: SessionClaims): Promise<TagRef[]>;
+  /** Full category records (with cover images) for Admin → Site images. */
+  listCategoryDetails(actor: SessionClaims): Promise<Category[]>;
+  /** RLS: editors and admins may update categories. Null when not found. */
+  updateCategory(actor: SessionClaims, slug: string, input: UpdateCategoryInput): Promise<Category | null>;
 }
 
 const iso = (d: Date | string | null) =>
@@ -421,6 +427,26 @@ export function createStudioRepository(db: Database): StudioRepository {
     listCategories: (actor) =>
       as(actor, (q) => q.query<CategoryRef>("select slug, name from public.categories order by sort_order, name")),
     listTags: (actor) => as(actor, (q) => q.query<TagRef>("select slug, name from public.tags order by name")),
+
+    listCategoryDetails: (actor) =>
+      as(actor, async (q) => {
+        const rows = await q.query<CategoryDetailRow>(
+          "select slug, name, description, image_url, image_alt from public.categories order by sort_order, name",
+        );
+        return rows.map(toCategoryDetail);
+      }),
+
+    updateCategory: (actor, slug, input) =>
+      as(actor, async (q) => {
+        const rows = await q.query<CategoryDetailRow>(
+          `update public.categories
+             set description = nullif($2, ''), image_url = nullif($3, ''), image_alt = case when nullif($3, '') is null then null else nullif($4, '') end
+           where slug = $1
+           returning slug, name, description, image_url, image_alt`,
+          [slug, input.description ?? "", input.imageUrl ?? "", input.imageAlt ?? ""],
+        );
+        return rows[0] ? toCategoryDetail(rows[0]) : null;
+      }),
   };
 }
 
@@ -428,4 +454,21 @@ export function createStudioRepository(db: Database): StudioRepository {
 async function slugExistsAnywhere(q: Queryable, slug: string): Promise<boolean> {
   const rows = await q.query<{ taken: boolean }>("select public.slug_taken($1) as taken", [slug]);
   return rows[0]?.taken ?? false;
+}
+
+interface CategoryDetailRow {
+  slug: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+}
+
+function toCategoryDetail(r: CategoryDetailRow): Category {
+  return {
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    image: r.image_url ? { url: r.image_url, alt: r.image_alt ?? "" } : null,
+  };
 }

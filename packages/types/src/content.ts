@@ -18,6 +18,8 @@ export interface CategoryRef {
 }
 export interface Category extends CategoryRef {
   description: string | null;
+  /** Cover image, editable by admins in Studio (Admin → Site images). */
+  image: ImageRef | null;
 }
 
 export interface TagRef {

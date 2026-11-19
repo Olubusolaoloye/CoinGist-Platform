@@ -153,3 +153,13 @@ export interface RevisionSummary {
 export interface Revision extends RevisionSummary {
   body: RichTextDoc;
 }
+
+/** Admin → Site images: a category's description and cover image. */
+export const UpdateCategoryInputSchema = z
+  .object({
+    description: optionalText(300),
+    imageUrl: httpsOrPath,
+    imageAlt: optionalText(300),
+  })
+  .refine((v) => !(v.imageUrl && !v.imageAlt), { message: "Add alt text for the image", path: ["imageAlt"] });
+export type UpdateCategoryInput = z.infer<typeof UpdateCategoryInputSchema>;
