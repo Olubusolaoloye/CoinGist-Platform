@@ -13,3 +13,4 @@ playwright-report
 packages/db/dev/sql.generated.ts
 .netlify
 apps/web/netlify/functions/api.mjs
+apps/studio/netlify/functions/*.mjs

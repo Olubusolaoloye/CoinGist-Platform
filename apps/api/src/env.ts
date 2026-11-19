@@ -8,7 +8,8 @@ const EnvSchema = z
     /** Legacy HS256 secret. If unset, tokens are verified against the project's JWKS. */
     SUPABASE_JWT_SECRET: z.string().min(32).optional(),
     SITE_URL: z.string().url().default("http://localhost:5173"),
-    NEWSLETTER_PROVIDER: z.enum(["beehiiv", "dev"]).default("beehiiv"),
+    /** "off": sign-ups are kept in our database only, until Beehiiv is set up. */
+    NEWSLETTER_PROVIDER: z.enum(["beehiiv", "dev", "off"]).default("beehiiv"),
     BEEHIIV_API_KEY: z.string().min(1).optional(),
     BEEHIIV_PUBLICATION_ID: z.string().min(1).optional(),
     /** Svix signing secret from Beehiiv's webhook settings (whsec_...). */

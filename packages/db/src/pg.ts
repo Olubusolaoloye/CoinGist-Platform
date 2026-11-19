@@ -2,8 +2,8 @@ import pg from "pg";
 import { createDatabase, type Database } from "./database.js";
 
 /** Production driver (node-postgres). Use the Supabase pooler connection string. */
-export function createPgDatabase(connectionString: string): Database {
-  const pool = new pg.Pool({ connectionString, max: 10 });
+export function createPgDatabase(connectionString: string, opts: { max?: number } = {}): Database {
+  const pool = new pg.Pool({ connectionString, max: opts.max ?? 10 });
 
   return createDatabase(
     async (fn) => {

@@ -34,8 +34,11 @@
   },
   "exports": {
     "./app": "./src/app.ts",
+    "./server": "./src/server.ts",
     "./auth": "./src/auth.ts",
     "./newsletter/dev-provider": "./src/newsletter/dev-provider.ts",
-    "./prices": "./src/prices/provider.ts"
+    "./prices": "./src/prices/provider.ts",
+    "./env": "./src/env.ts",
+    "./monitoring": "./src/monitoring.ts"
   }
 }
