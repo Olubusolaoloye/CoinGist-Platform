@@ -1,4 +1,5 @@
 import { breadcrumbJsonLd, buildMeta, profilePageJsonLd } from "@coingist/seo";
+import { fixedImage } from "~/lib/image";
 import { safeHref } from "@coingist/ui";
 import type { Route } from "./+types/author";
 import { Breadcrumbs } from "~/components/Breadcrumbs";
@@ -74,7 +75,7 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
       <header className="mt-5 flex flex-col gap-5 border-b-2 border-ink pb-6 sm:flex-row sm:items-start">
         {author.avatarUrl ? (
           <img
-            src={author.avatarUrl}
+            src={fixedImage(author.avatarUrl, 96)}
             alt=""
             width={96}
             height={96}

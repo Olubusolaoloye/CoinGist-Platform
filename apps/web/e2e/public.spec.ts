@@ -217,6 +217,9 @@ test.describe("home and search", () => {
     const slides = spot.locator('[aria-roledescription="slide"]');
     expect(await slides.count()).toBeGreaterThan(1);
     await expect(slides.first()).toHaveAttribute("data-active", "true");
+    // Hidden slides don't download their photo up front (at most the next one is preloaded).
+    const count = await slides.count();
+    if (count > 2) await expect(slides.nth(count - 1).locator("img")).toHaveCount(0);
     await spot.getByRole("button", { name: /^Story 2 of/ }).click();
     await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
     await expect(slides.first()).toHaveAttribute("data-active", "false");

@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { Category } from "@coingist/types";
+import { responsiveImage } from "~/lib/image";
 
 /** Topic covers. The images are set by admins in Studio (Admin → Site images). */
 export function TopicTiles({ categories }: { categories: Category[] }) {
@@ -15,7 +16,7 @@ export function TopicTiles({ categories }: { categories: Category[] }) {
               className={`group relative isolate block h-full overflow-hidden rounded-3xl bg-night ${i === 0 ? "min-h-[16rem] sm:min-h-[22rem]" : "min-h-[10rem] sm:min-h-[10.5rem]"}`}
             >
               {c.image ? (
-                <img src={c.image.url} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                <img {...responsiveImage(c.image.url, i === 0 ? 720 : 360)} sizes={i === 0 ? "(min-width: 1024px) 560px, 100vw" : "(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
               ) : (
                 <span aria-hidden="true" className="placeholder-art absolute inset-0" />
               )}

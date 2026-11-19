@@ -11,6 +11,10 @@ const forNetlify = process.env["NETLIFY"] === "true" || process.env["DEPLOY_TARG
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), ...(forNetlify ? [netlifyReactRouter()] : [])],
   // See app/lib/production.server.ts.
-  define: { __COINGIST_FORCE_PRODUCTION__: forNetlify ? "true" : "false" },
+  define: {
+    __COINGIST_FORCE_PRODUCTION__: forNetlify ? "true" : "false",
+    // See app/lib/image.ts.
+    __COINGIST_IMAGE_CDN__: forNetlify ? "true" : "false",
+  },
   resolve: { alias: { "~": fileURLToPath(new URL("./app", import.meta.url)) } },
 });

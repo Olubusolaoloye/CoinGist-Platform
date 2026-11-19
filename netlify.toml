@@ -34,3 +34,7 @@
   for = "/og-default.png"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+
+# Netlify Image CDN may resize uploads from Supabase Storage (see app/lib/image.ts).
+[images]
+  remote_images = ["https://[a-z0-9]+\\.supabase\\.co/storage/v1/object/public/.*"]

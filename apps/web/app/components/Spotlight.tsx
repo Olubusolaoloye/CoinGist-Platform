@@ -1,18 +1,19 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { postPath, type PostSummary } from "@coingist/types";
 import { formatDate, SECTION_LABEL } from "~/lib/format";
+import { responsiveImage } from "~/lib/image";
 import { Avatar } from "./Avatar";
 
 function label(p: PostSummary) {
   return p.isSponsored ? "Sponsored" : (p.category?.name ?? SECTION_LABEL[p.type]);
 }
 
-function Photo({ post, priority, sizes }: { post: PostSummary; priority: boolean; sizes: string }) {
+function Photo({ post, priority, sizes, maxWidth }: { post: PostSummary; priority: boolean; sizes: string; maxWidth: number }) {
   if (!post.heroImage) return <div aria-hidden="true" className="placeholder-art absolute inset-0" />;
   return (
     <img
-      src={post.heroImage.url}
+      {...responsiveImage(post.heroImage.url, maxWidth)}
       alt={post.heroImage.alt}
       width={1600}
       height={900}
@@ -32,6 +33,22 @@ function Photo({ post, priority, sizes }: { post: PostSummary; priority: boolean
  */
 export function Spotlight({ posts }: { posts: PostSummary[] }) {
   const [active, setActive] = useState(0);
+  // Hidden slides don't download their photo until needed: the first slide's photo loads with
+  // the page; once the page has loaded, the next one is fetched quietly so switching is instant.
+  const [loaded, setLoaded] = useState<ReadonlySet<number>>(() => new Set([0]));
+  useEffect(() => {
+    setLoaded((prev) => (prev.has(active) ? prev : new Set(prev).add(active)));
+  }, [active]);
+  useEffect(() => {
+    const next = (active + 1) % Math.max(posts.length, 1);
+    const preload = () => setLoaded((prev) => (prev.has(next) ? prev : new Set(prev).add(next)));
+    if (document.readyState === "complete") {
+      const t = setTimeout(preload, 1500);
+      return () => clearTimeout(t);
+    }
+    window.addEventListener("load", preload, { once: true });
+    return () => window.removeEventListener("load", preload);
+  }, [active, posts.length]);
   if (posts.length === 0) return null;
   const peeks = [1, 2].map((o) => (active + o) % posts.length).filter((i, n, all) => i !== active && all.indexOf(i) === n);
 
@@ -73,7 +90,11 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
               aria-label={`${i + 1} of ${posts.length}`}
               className="spot-slide absolute inset-0"
             >
-              <Photo post={p} priority={i === 0} sizes="(min-width: 1024px) 760px, 100vw" />
+              {loaded.has(i) ? (
+                <Photo post={p} priority={i === 0} sizes="(min-width: 1024px) 760px, 100vw" maxWidth={1200} />
+              ) : (
+                <div aria-hidden="true" className="placeholder-art absolute inset-0" />
+              )}
               <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-night/85 via-night/20 to-transparent" />
               <div className="absolute inset-x-3 bottom-3 sm:inset-x-5 sm:bottom-5 lg:right-auto lg:max-w-[42rem]">
                 <div className="glass-photo rounded-2xl p-5 sm:p-6">
@@ -111,7 +132,7 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
                   className={`group relative isolate overflow-hidden rounded-[1.5rem] bg-night text-left ${n === 0 ? "w-36 lg:w-44" : "w-20 lg:w-28"}`}
                   aria-label={`Show: ${p.title}`}
                 >
-                  <Photo post={p} priority={false} sizes="180px" />
+                  <Photo post={p} priority={false} sizes="180px" maxWidth={180} />
                   <span aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-night/80 to-night/10 transition-opacity group-hover:opacity-70" />
                   {n === 0 ? (
                     <span className="absolute inset-x-2 bottom-2 line-clamp-4 rounded-xl glass-photo p-2.5 text-sm leading-snug font-semibold">
