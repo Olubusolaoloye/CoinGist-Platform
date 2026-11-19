@@ -6,6 +6,8 @@ import type { AppEnv } from "../context.js";
 
 /** CDN-cacheable for a minute; serve stale for 5 while revalidating. */
 const CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
+/** Netlify's shared cache: every edge node reads it, and stale copies are served while refreshing. */
+const CDN_CACHE = "public, durable, s-maxage=60, stale-while-revalidate=604800";
 
 const SlugParam = z.object({ slug: SlugSchema });
 const ListQuery = z.object({
@@ -25,7 +27,10 @@ const notFound = { error: { code: "not_found", message: "Not found" } } as const
 export const publicRoutes = new Hono<AppEnv>()
   .use("*", async (c, next) => {
     await next();
-    if (c.req.method === "GET" && c.res.status === 200) c.header("Cache-Control", CACHE);
+    if (c.req.method === "GET" && c.res.status === 200) {
+      c.header("Cache-Control", CACHE);
+      c.header("Netlify-CDN-Cache-Control", CDN_CACHE);
+    }
   })
   .get("/posts", zValidator("query", ListQuery), async (c) => {
     const q = c.req.valid("query");

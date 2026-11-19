@@ -51,7 +51,10 @@ function applyDocumentHeaders(headers: Headers, status: number, nonce: string, r
     headers.set("Content-Security-Policy", contentSecurityPolicy(nonce, https));
   }
   // Never let a CDN cache an error page (a transient 404/502 would stick for every reader).
-  if (status >= 400) headers.set("Cache-Control", "no-store");
+  if (status >= 400) {
+    headers.set("Cache-Control", "no-store");
+    headers.delete("Netlify-CDN-Cache-Control");
+  }
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Frame-Options", "DENY");

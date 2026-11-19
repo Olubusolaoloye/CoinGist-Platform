@@ -133,9 +133,20 @@ export function assertPageInRange(page: number, list: Paginated<unknown>) {
 
 export const HTML_CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 
-/** Loader response that the CDN may cache. Errors are thrown, so they never get this header. */
+/**
+ * Netlify's shared ("durable") cache, which every edge node reads, unlike the per-node edge
+ * cache. Pages refresh at most once a minute; when one has expired, readers get the cached copy
+ * instantly while Netlify re-renders it in the background (for up to a week).
+ */
+export const CDN_HEADERS = {
+  "Netlify-CDN-Cache-Control": "public, durable, s-maxage=60, stale-while-revalidate=604800",
+  // The theme cookie changes the HTML (light/dark class), so cache each variant separately.
+  "Netlify-Vary": "query,cookie=theme",
+} as const;
+
+/** Loader response that the CDN may cache. Errors are thrown, so they never get these headers. */
 export function cached<T>(value: T) {
-  return data(value, { headers: { "Cache-Control": HTML_CACHE } });
+  return data(value, { headers: { "Cache-Control": HTML_CACHE, ...CDN_HEADERS } });
 }
 
 export type SubscribeResult = { ok: true; message: string } | { ok: false; message: string };

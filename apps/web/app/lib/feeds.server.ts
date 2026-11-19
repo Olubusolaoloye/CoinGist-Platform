@@ -17,6 +17,7 @@ export function xmlResponse(body: string, contentType: string, maxAge: number): 
     headers: {
       "Content-Type": `${contentType}; charset=utf-8`,
       "Cache-Control": `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${maxAge * 5}`,
+      "Netlify-CDN-Cache-Control": `public, durable, s-maxage=${maxAge}, stale-while-revalidate=604800`,
       "X-Content-Type-Options": "nosniff",
       ...(isDemo() ? { "X-Robots-Tag": "noindex, nofollow" } : {}),
     },

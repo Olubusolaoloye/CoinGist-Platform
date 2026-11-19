@@ -124,8 +124,14 @@ test.describe("listings and authors", () => {
   });
 
   test("pages are cacheable at the CDN, errors are not", async ({ request }) => {
-    expect((await request.get("/news")).headers()["cache-control"]).toContain("s-maxage=60");
-    expect((await request.get("/news/unpublished-draft-never-visible")).headers()["cache-control"]).toBe("no-store");
+    const listing = (await request.get("/news")).headers();
+    expect(listing["cache-control"]).toContain("s-maxage=60");
+    // Netlify's shared cache, kept per theme cookie so nobody gets the wrong colour scheme.
+    expect(listing["netlify-cdn-cache-control"]).toBe("public, durable, s-maxage=60, stale-while-revalidate=604800");
+    expect(listing["netlify-vary"]).toBe("query,cookie=theme");
+    const missing = (await request.get("/news/unpublished-draft-never-visible")).headers();
+    expect(missing["cache-control"]).toBe("no-store");
+    expect(missing["netlify-cdn-cache-control"]).toBeUndefined();
   });
 });
 

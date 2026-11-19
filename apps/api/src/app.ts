@@ -82,6 +82,7 @@ export function createApp(deps: AppDeps) {
       return c.json({ error: { code: "unavailable", message: "Prices aren't available right now" } }, 503);
     }
     c.header("Cache-Control", "public, max-age=30, s-maxage=60, stale-while-revalidate=300");
+    c.header("Netlify-CDN-Cache-Control", "public, durable, s-maxage=60, stale-while-revalidate=3600");
     return c.json(ticker);
   });
   app.route("/v1/public", publicRoutes);

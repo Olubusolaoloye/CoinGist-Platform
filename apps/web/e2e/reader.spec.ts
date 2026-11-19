@@ -78,6 +78,7 @@ test.describe("reader accounts", () => {
     await signIn(page, "Amara Okafor");
     const forYou = await page.goto("/for-you");
     expect(forYou!.headers()["cache-control"]).toBe("private, no-store");
+    expect(forYou!.headers()["netlify-cdn-cache-control"]).toBeUndefined();
     expect(forYou!.headers()["x-robots-tag"]).toContain("noindex");
     const article = await page.goto(ARTICLE);
     expect(article!.headers()["cache-control"]).toMatch(/^public/);
