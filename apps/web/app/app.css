@@ -105,14 +105,72 @@ body {
   display: none;
 }
 
-/* Placeholder for posts without art: an adire-style resist-dye grid in the theme's colours. */
+/* Placeholder for posts without art: the CoinGist coin ring on an indigo dusk. */
 .placeholder-art {
-  background-color: var(--line);
-  background-image: radial-gradient(circle at 50% 50%, var(--paper) 0 18%, transparent 19%),
-    linear-gradient(45deg, transparent 46%, var(--paper) 47% 53%, transparent 54%);
-  background-size: 28px 28px;
-  opacity: 0.8;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 17%, var(--gist) 17.5% 27%, transparent 27.5%) no-repeat,
+    radial-gradient(120% 90% at 85% 0%, #3b44a8 0%, transparent 60%),
+    radial-gradient(90% 80% at 0% 100%, #2a2f86 0%, transparent 65%),
+    var(--night);
+  background-size: min(42%, 220px) auto, 100% 100%, 100% 100%, auto;
+  background-position: center;
 }
+
+/* ── Glass ────────────────────────────────────────────────────────────────
+   Frosted surfaces over the page's indigo-and-yellow haze or over photos. */
+:root {
+  --glass: color-mix(in oklab, var(--surface) 68%, transparent);
+  --glass-strong: color-mix(in oklab, var(--surface) 82%, transparent);
+  --glass-edge: color-mix(in oklab, white 65%, transparent);
+  --glass-shadow: 0 1px 0 color-mix(in oklab, white 55%, transparent) inset, 0 18px 40px -24px rgb(20 22 63 / 0.35);
+}
+:root.dark {
+  --glass-edge: color-mix(in oklab, white 12%, transparent);
+  --glass-shadow: 0 1px 0 color-mix(in oklab, white 8%, transparent) inset, 0 18px 40px -24px rgb(0 0 0 / 0.7);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not(.light) {
+    --glass-edge: color-mix(in oklab, white 12%, transparent);
+    --glass-shadow: 0 1px 0 color-mix(in oklab, white 8%, transparent) inset, 0 18px 40px -24px rgb(0 0 0 / 0.7);
+  }
+}
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  backdrop-filter: blur(18px) saturate(160%);
+}
+.glass-strong { background: var(--glass-strong); }
+/* Over photographs: dark frosted panel, always light text. */
+.glass-photo {
+  background: rgb(14 16 48 / 0.42);
+  border: 1px solid rgb(255 255 255 / 0.16);
+  color: #fff;
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(16px) saturate(140%);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: var(--surface); }
+  .glass-photo { background: rgb(14 16 48 / 0.82); }
+}
+
+/* The haze behind the page that the glass blurs: indigo from the top left, a coin-yellow
+   glow from the right. Fixed so it reads as light, not as a pattern that scrolls. */
+.page-haze {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(60rem 36rem at -10% -10%, color-mix(in oklab, #3b44a8 26%, transparent), transparent 70%),
+    radial-gradient(40rem 30rem at 110% 8%, color-mix(in oklab, var(--gist) 26%, transparent), transparent 70%),
+    radial-gradient(50rem 40rem at 50% 120%, color-mix(in oklab, #3b44a8 14%, transparent), transparent 70%);
+}
+
+/* Spotlight slides: one slide visible, gentle crossfade when readers change it. */
+.spot-slide { transition: opacity 400ms ease, transform 600ms cubic-bezier(.2,.7,.2,1); }
+.spot-slide[data-active="false"] { opacity: 0; transform: scale(1.02); pointer-events: none; }
 
 /* ── Article body ─────────────────────────────────────────────────────── */
 .article-body {

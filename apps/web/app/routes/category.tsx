@@ -61,6 +61,7 @@ export default function CategoryPage({ loaderData }: Route.ComponentProps) {
     <ListingPage
       title={category.name}
       intro={category.description}
+      cover={category.image}
       path={path}
       crumbs={[
         { name: "Home", path: "/" },

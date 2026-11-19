@@ -9,7 +9,7 @@ export function TrendingStrip({ posts }: { posts: PostSummary[] }) {
   const track = useRef<HTMLUListElement>(null);
   if (posts.length === 0) return null;
   return (
-    <section aria-label="Just in" className="flex items-center gap-3 rounded-xl border border-line bg-surface px-4 py-2.5 shadow-sm">
+    <section aria-label="Just in" className="glass flex items-center gap-3 rounded-2xl px-4 py-2.5">
       <h2 className="flex shrink-0 items-center gap-2 font-display text-base font-extrabold">
         <span aria-hidden="true" className="size-2.5 rounded-full bg-gist ring-4 ring-gist/30" />
         Just in

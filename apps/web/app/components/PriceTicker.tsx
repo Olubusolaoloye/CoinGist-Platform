@@ -11,7 +11,7 @@ const ngn = (n: number) =>
  */
 export function PriceTicker({ ticker }: { ticker: Ticker }) {
   return (
-    <section aria-label="Crypto prices" className="border-b border-line bg-surface">
+    <section aria-label="Crypto prices">
       <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-1.5 text-sm">
         <ul className="no-scrollbar relative flex min-w-0 flex-1 gap-5 overflow-x-auto whitespace-nowrap" tabIndex={0} aria-label="Prices, scroll for more">
           {ticker.quotes.map((q) => {

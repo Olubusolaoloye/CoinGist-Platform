@@ -73,6 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ) : null}
       </head>
       <body className="min-h-dvh font-sans antialiased">
+        <div aria-hidden="true" className="page-haze" />
         <a
           href="#main"
           className="sr-only z-50 rounded-md bg-gist px-4 py-2 font-semibold text-gist-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"

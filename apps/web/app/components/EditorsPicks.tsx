@@ -7,7 +7,7 @@ import { PostImage } from "./PostImage";
 export function EditorsPicks({ posts }: { posts: PostSummary[] }) {
   if (posts.length === 0) return null;
   return (
-    <section aria-labelledby="picks-h" className="rounded-2xl border border-line bg-surface p-5 shadow-sm">
+    <section aria-labelledby="picks-h" className="glass rounded-3xl p-5">
       <h2 id="picks-h" className="font-display text-xl font-extrabold">Editors' picks</h2>
       <ol className="mt-3 divide-y divide-line">
         {posts.map((p, i) => (

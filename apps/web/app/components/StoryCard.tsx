@@ -8,7 +8,7 @@ import { PostImage } from "./PostImage";
 export function Pill({ post }: { post: PostSummary }) {
   const label = post.isSponsored ? "Sponsored" : (post.category?.name ?? SECTION_LABEL[post.type]);
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm ${post.isSponsored ? "bg-ink text-paper" : "bg-surface text-ink"}`}>
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${post.isSponsored ? "bg-ink text-paper" : "glass-photo"}`}>
       <span aria-hidden="true" className={`size-1.5 rounded-full ${post.isSponsored ? "bg-gist" : "bg-link"}`} />
       {label}
     </span>
@@ -35,7 +35,7 @@ export function CardMeta({ post }: { post: PostSummary }) {
 export function StoryCard({ post, headingLevel = 3 }: { post: PostSummary; headingLevel?: 2 | 3 }) {
   const H = headingLevel === 2 ? "h2" : "h3";
   return (
-    <article className="relative flex h-full flex-col overflow-hidden rounded-xl border border-line bg-surface shadow-sm transition-shadow hover:shadow-md">
+    <article className="glass relative flex h-full flex-col overflow-hidden rounded-3xl">
       <div className="relative">
         <PostImage image={post.heroImage} sizes="(min-width: 1024px) 380px, 80vw" className="w-full rounded-none" />
         <div className="absolute bottom-3 left-3"><Pill post={post} /></div>
