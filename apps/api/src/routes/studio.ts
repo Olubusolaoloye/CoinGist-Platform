@@ -16,6 +16,7 @@ const Id = z.object({ id: z.string().uuid() });
 const ListQuery = z.object({
   status: PostStatusSchema.optional(),
   mine: z.enum(["true", "false"]).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
@@ -39,6 +40,7 @@ export const studioRoutes = new Hono<AppEnv>()
     const list = await c.var.repos.studio.listPosts(c.var.claims!, {
       status: q.status,
       mine: q.mine === "true",
+      search: q.q,
       page: q.page,
       pageSize: q.pageSize,
     });

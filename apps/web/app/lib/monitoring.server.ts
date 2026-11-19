@@ -1,3 +1,4 @@
+import "./production.server";
 import * as Sentry from "@sentry/node";
 
 let enabled = false;

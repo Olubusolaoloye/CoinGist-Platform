@@ -33,7 +33,7 @@ export async function action({ request }: Route.ActionArgs) {
 
 export default function SiteImages({ loaderData }: Route.ComponentProps) {
   return (
-    <div className="space-y-6">
+    <main className="space-y-6 px-3 py-6 sm:px-5">
       <header>
         <p className="eyebrow">Admin</p>
         <h1 className="font-display text-3xl font-extrabold">Site images</h1>
@@ -47,7 +47,7 @@ export default function SiteImages({ loaderData }: Route.ComponentProps) {
           <CategoryCard key={c.slug} category={c} />
         ))}
       </div>
-    </div>
+    </main>
   );
 }
 

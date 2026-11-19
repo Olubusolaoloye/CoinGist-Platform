@@ -1,3 +1,4 @@
+import "./production.server";
 import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
 import { createCookieSessionStorage, data, redirect } from "react-router";
 import type { FeedStory, FollowInput, FollowTarget, Paginated, ReaderFeed, ReaderState, SavedStory, User } from "@coingist/types";

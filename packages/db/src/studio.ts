@@ -30,7 +30,7 @@ import { DomainError, mapDbError } from "./errors.js";
 export interface StudioRepository {
   listPosts(
     actor: SessionClaims,
-    q: { status?: PostStatus | undefined; mine?: boolean; page: number; pageSize: number },
+    q: { status?: PostStatus | undefined; mine?: boolean; search?: string | undefined; page: number; pageSize: number },
   ): Promise<Paginated<StudioPostSummary>>;
   reviewQueue(actor: SessionClaims): Promise<StudioPostSummary[]>;
   getPost(actor: SessionClaims, id: string): Promise<StudioPost | null>;
@@ -68,13 +68,16 @@ export type StudioSummaryRow = {
   scheduled_for: Date | null;
   published_at: Date | null;
   open_comments: number;
+  ai_assisted: boolean;
+  hero_image_url: string | null;
+  hero_image_alt: string | null;
   total?: number;
 };
 
 export const STUDIO_SUMMARY_SQL = `
   select p.id, p.type, p.title, p.slug, p.status, p.author_id, u.name as author_name,
          c.slug as category_slug, c.name as category_name,
-         p.updated_at, p.scheduled_for, p.published_at,
+         p.updated_at, p.scheduled_for, p.published_at, p.ai_assisted, p.hero_image_url, p.hero_image_alt,
          (select count(*)::int from public.editorial_comments ec
            where ec.post_id = p.id and ec.resolved_at is null) as open_comments
   from public.posts p
@@ -93,6 +96,8 @@ export const toStudioSummary = (r: StudioSummaryRow): StudioPostSummary => ({
   scheduledFor: iso(r.scheduled_for),
   publishedAt: iso(r.published_at),
   openComments: r.open_comments,
+  aiAssisted: r.ai_assisted,
+  heroImage: r.hero_image_url ? { url: r.hero_image_url, alt: r.hero_image_alt ?? "" } : null,
 });
 
 type PostRow = {
@@ -231,14 +236,15 @@ export function createStudioRepository(db: Database): StudioRepository {
     db.asUser(actor, fn).catch(mapDbError);
 
   return {
-    listPosts: (actor, { status, mine, page, pageSize }) =>
+    listPosts: (actor, { status, mine, search, page, pageSize }) =>
       as(actor, async (q) => {
         const rows = await q.query<StudioSummaryRow>(
           `select *, count(*) over ()::int as total from (${STUDIO_SUMMARY_SQL}
              where ($1::public.post_status is null or p.status = $1)
-               and (not $2::boolean or p.author_id = $3)) s
+               and (not $2::boolean or p.author_id = $3)
+               and ($6::text is null or p.title ilike '%' || $6 || '%' or u.name ilike '%' || $6 || '%' or c.name ilike '%' || $6 || '%')) s
            order by updated_at desc limit $4 offset $5`,
-          [status ?? null, mine ?? false, actor.sub, pageSize, (page - 1) * pageSize],
+          [status ?? null, mine ?? false, actor.sub, pageSize, (page - 1) * pageSize, search ? search.replace(/[\\%_]/g, (m) => `\\${m}`) : null],
         );
         return { items: rows.map(toStudioSummary), page, pageSize, total: rows[0]?.total ?? 0 };
       }),

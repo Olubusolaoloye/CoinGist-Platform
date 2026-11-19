@@ -10,8 +10,7 @@
     "typecheck": "react-router typegen && tsc",
     "test:e2e": "playwright test --trace off",
     "dev:local": "API_URL=http://localhost:8787 react-router dev --port 5173",
-    "test": "vitest run",
-    "build:functions": "esbuild netlify/functions-src/api.mts --bundle --platform=node --format=esm --target=node22 --external:@electric-sql/pglite --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=netlify/functions/api.mjs"
+    "test": "vitest run"
   },
   "dependencies": {
     "@coingist/api": "workspace:*",

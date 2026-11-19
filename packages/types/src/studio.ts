@@ -104,6 +104,8 @@ export interface StudioPostSummary {
   scheduledFor: string | null;
   publishedAt: string | null;
   openComments: number;
+  aiAssisted: boolean;
+  heroImage: ImageRef | null;
 }
 
 export interface StudioPost {

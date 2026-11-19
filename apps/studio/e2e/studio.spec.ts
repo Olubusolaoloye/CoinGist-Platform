@@ -22,7 +22,7 @@ async function signOut(page: Page) {
 }
 
 async function createPost(page: Page, title: string, type = "news") {
-  await page.getByRole("link", { name: "New post" }).click();
+  await page.getByRole("link", { name: "New story" }).click();
   await page.getByLabel("Headline").fill(title);
   await page.getByRole("radio", { name: new RegExp(`^${type}`, "i") }).check();
   await page.getByRole("button", { name: "Create draft" }).click();
@@ -211,7 +211,7 @@ test.describe("editor", () => {
     await createPost(page, `Unsaved ${Date.now()}`);
     await page.locator(".ProseMirror").click();
     await page.keyboard.type("Not saved yet");
-    await page.getByRole("navigation", { name: "Studio" }).getByRole("link", { name: "Posts" }).click();
+    await page.getByRole("navigation", { name: "Studio" }).getByRole("link", { name: "Stories" }).click();
     await expect(page.getByText("You have unsaved changes.")).toBeVisible();
     await page.getByRole("button", { name: "Keep editing" }).click();
     await expect(page.locator(".ProseMirror")).toContainText("Not saved yet");
