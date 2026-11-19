@@ -1,3 +1,4 @@
+import "./lib/production.server";
 import { randomBytes } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";

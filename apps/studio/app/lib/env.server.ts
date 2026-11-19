@@ -1,3 +1,4 @@
+import "./production.server";
 /** Server-only Studio configuration. */
 export type AuthMode = "supabase" | "dev";
 

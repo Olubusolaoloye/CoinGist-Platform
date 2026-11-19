@@ -10,6 +10,8 @@ const forNetlify = process.env["NETLIFY"] === "true" || process.env["DEPLOY_TARG
 
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), ...(forNetlify ? [netlifyReactRouter()] : [])],
+  // See app/lib/production.server.ts.
+  define: { __COINGIST_FORCE_PRODUCTION__: forNetlify ? "true" : "false" },
   // Behind a preview proxy the Host header isn't localhost. Only opened up when extra action
   // origins are explicitly allowed (dev server only; production doesn't run Vite).
   server: process.env["STUDIO_ALLOWED_ACTION_ORIGINS"] ? { allowedHosts: true } : {},
