@@ -16,6 +16,14 @@ for (const node of Array.from(document.head.childNodes)) {
   if (injected) node.remove();
 }
 
+/**
+ * Phones with 2 GB of memory or less tend to have weak graphics chips, where many live blurs
+ * make scrolling stutter. They get the same colours without the blur (see .glass in app.css).
+ * A data attribute, so React (which owns <html>'s class for the theme) leaves it alone.
+ */
+const memory = (navigator as Navigator & { deviceMemory?: number }).deviceMemory;
+if (typeof memory === "number" && memory <= 2) document.documentElement.dataset["liteGlass"] = "";
+
 startTransition(() => {
   hydrateRoot(
     document,

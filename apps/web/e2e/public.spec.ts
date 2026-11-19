@@ -232,6 +232,25 @@ test.describe("hosting", () => {
   });
 });
 
+test.describe("lighter glass", () => {
+  test("phones with 2 GB of memory or less get glass without the live blur", async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, "deviceMemory", { get: () => 2 }));
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-lite-glass", "");
+    const blur = await page.locator(".glass").first().evaluate((e) => getComputedStyle(e).backdropFilter);
+    expect(blur).toBe("none");
+  });
+
+  test("other devices keep the frosted glass", async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, "deviceMemory", { get: () => 8 }));
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("html")).not.toHaveAttribute("data-lite-glass", "");
+    const blur = await page.locator(".glass").first().evaluate((e) => getComputedStyle(e).backdropFilter);
+    expect(blur).toContain("blur");
+  });
+});
+
 test.describe("home and search", () => {
   test("spotlight changes story on request, beside today's gist and editors' picks", async ({ page, isMobile }) => {
     await page.goto("/");
