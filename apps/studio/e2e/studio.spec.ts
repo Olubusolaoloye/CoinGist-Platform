@@ -449,7 +449,7 @@ test.describe("dashboards", () => {
     await signIn(page, ADMIN);
     await page.goto("/admin");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Admin");
-    await page.getByRole("link", { name: "Payouts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Studio" }).getByRole("link", { name: "Payouts", exact: true }).click();
 
     const other = page.getByRole("region", { name: "Other payment" });
     await other.getByLabel("Writer").selectOption({ label: WRITER });

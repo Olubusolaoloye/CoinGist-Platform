@@ -92,6 +92,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
   return (
     <main className="mx-auto max-w-6xl px-4 pb-8">
+      <h1 className="sr-only">CoinGist: crypto news with an African lens</h1>
       <Spotlight posts={spotlight} />
 
       <div className="mt-6"><TrendingStrip posts={latest.slice(0, 8)} /></div>

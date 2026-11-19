@@ -66,7 +66,8 @@ export function ImageField({
             ref={input}
             type="file"
             accept="image/jpeg,image/png,image/webp,image/avif"
-            className="sr-only"
+            hidden
+            aria-label={`${label} file`}
             id={`${id}-file`}
             onChange={(e) => {
               pick(e.target.files?.[0]);

@@ -205,16 +205,18 @@ test.describe("theme", () => {
 });
 
 test.describe("home and search", () => {
-  test("hero shows today's gist and the top stories carousel pages", async ({ page, isMobile }) => {
+  test("spotlight changes story on request, beside today's gist and editors' picks", async ({ page, isMobile }) => {
     await page.goto("/");
-    const gist = page.getByRole("complementary", { name: "Today's gist in 30 seconds" });
-    await expect(gist.getByRole("link", { name: "Read the full story" })).toBeVisible();
-    const top = page.getByRole("region", { name: "Top stories" });
-    const slides = top.locator('[aria-roledescription="slide"]');
-    await expect(slides).toHaveCount(4);
-    await expect(top.getByRole("button", { name: "Previous top stories" })).toBeDisabled();
-    await top.getByRole("button", { name: "Next top stories" }).click();
-    await expect(top.getByRole("button", { name: "Previous top stories" })).toBeEnabled();
+    const spot = page.getByRole("region", { name: "Spotlight" });
+    const slides = spot.locator('[aria-roledescription="slide"]');
+    expect(await slides.count()).toBeGreaterThan(1);
+    await expect(slides.first()).toHaveAttribute("data-active", "true");
+    await spot.getByRole("button", { name: /^Story 2 of/ }).click();
+    await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
+    await expect(slides.first()).toHaveAttribute("data-active", "false");
+    const gist = page.getByRole("region", { name: "Today's gist in 30 seconds" });
+    await expect(gist.getByRole("listitem").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Markets today" })).toBeVisible();
     if (!isMobile) await expect(page.getByRole("region", { name: "Editors' picks" }).getByRole("listitem")).toHaveCount(5);
   });
 
