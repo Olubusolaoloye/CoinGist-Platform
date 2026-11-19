@@ -1,4 +1,5 @@
 import { data, Link, redirect } from "react-router";
+import { responsiveImage } from "~/lib/image";
 import { absoluteUrl, breadcrumbJsonLd, buildMeta, newsArticleJsonLd } from "@coingist/seo";
 import { postPath, POST_TYPES, type PostType } from "@coingist/types";
 import { readingTimeMinutes, RichText } from "@coingist/ui";
@@ -148,7 +149,13 @@ export default function Article({ loaderData }: Route.ComponentProps) {
         <GistBox bullets={post.summaryBullets} heading="The gist in 30 seconds" className="mt-6" />
 
         <div className="article-body mt-8">
-          <RichText doc={post.body} siteOrigin={site.url} sponsored={post.isSponsored} />
+          <RichText
+            doc={post.body}
+            siteOrigin={site.url}
+            sponsored={post.isSponsored}
+            imageSources={(src) => responsiveImage(src, 720)}
+            imageSizes="(min-width: 768px) 720px, 100vw"
+          />
         </div>
 
         {post.aiAssisted ? (
