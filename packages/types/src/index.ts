@@ -5,6 +5,7 @@ export * from "./content.js";
 export * from "./richtext.js";
 export * from "./studio.js";
 export * from "./url.js";
+export * from "./newsletter-lists.js";
 export * from "./newsletter.js";
 export * from "./commerce.js";
 export * from "./insights.js";
