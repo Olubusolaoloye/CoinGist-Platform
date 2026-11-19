@@ -27,7 +27,10 @@ Current addresses:
 - [ ] Verify `coingist.com` in Google Search Console, add the logo (`brand/coingist-logo-120.png`), then Branding → **Verify branding**. Only after this does Google's sign-in screen say "CoinGist" instead of a web address.
 - The redirect URI (`…supabase.co/auth/v1/callback`) does not change.
 
-## 4. Elsewhere
+## 4. Images
+- [ ] The starter cover images (stories and topics) point at `https://coingist-preview.netlify.app/covers/…`. Replace them with uploads in Studio, or update the URLs, before retiring the preview address.
+
+## 5. Elsewhere
 - [ ] Beehiiv: publication URL and webhook, once the newsletter is connected.
 - [ ] Google Search Console + submit `https://coingist.com/sitemap.xml`.
 - [ ] Analytics (`PLAUSIBLE_DOMAIN`) and Sentry allowed domains, if used.
