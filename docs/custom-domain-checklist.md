@@ -28,7 +28,7 @@ Current addresses:
 - The redirect URI (`…supabase.co/auth/v1/callback`) does not change.
 
 ## 4. Images
-- [ ] The starter cover images (stories and topics) point at `https://coingist-preview.netlify.app/covers/…`. Replace them with uploads in Studio, or update the URLs, before retiring the preview address.
+- [ ] The starter cover photos (stories and topics, see `docs/image-credits.md`) point at `https://coingist-preview.netlify.app/covers/photos/…`. Replace them with uploads in Studio, or update the URLs, before retiring the preview address.
 
 ## 5. Elsewhere
 - [ ] Beehiiv: publication URL and webhook, once the newsletter is connected.
