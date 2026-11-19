@@ -17,13 +17,14 @@ Current addresses:
 ## 2. Supabase (Authentication → URL Configuration)
 - [ ] Site URL → `https://coingist.com`.
 - [ ] Redirect URLs → add `https://studio.coingist.com/auth/callback` and `https://coingist.com/account/callback`; remove the netlify.app ones once the new ones work.
+- [ ] Custom domain for auth (Pro plan + Custom Domain add-on), e.g. `auth.coingist.com`, so Google's screen no longer shows `…supabase.co`. Then add `https://auth.coingist.com/auth/v1/callback` to the Google client's redirect URIs.
 - [ ] Custom SMTP sender (Resend) on the new domain, e.g. `no-reply@coingist.com`.
 
 ## 3. Google Cloud (CoinGist project → Google Auth Platform)
 - [ ] Branding → Application home page `https://coingist.com`, privacy `https://coingist.com/privacy`, terms `https://coingist.com/terms`.
 - [ ] Branding → Authorized domains → add `coingist.com`; remove the netlify.app ones afterwards.
 - [ ] Clients → "CoinGist Supabase" → Authorized JavaScript origins → `https://coingist.com`, `https://studio.coingist.com`.
-- [ ] (Optional) Add the app logo (`brand/coingist-logo-120.png`) — triggers Google's brand review.
+- [ ] Verify `coingist.com` in Google Search Console, add the logo (`brand/coingist-logo-120.png`), then Branding → **Verify branding**. Only after this does Google's sign-in screen say "CoinGist" instead of a web address.
 - The redirect URI (`…supabase.co/auth/v1/callback`) does not change.
 
 ## 4. Elsewhere
