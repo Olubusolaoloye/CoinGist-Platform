@@ -8,6 +8,15 @@ import { defineConfig } from "vite";
 // builds keep using react-router-serve.
 const forNetlify = process.env["NETLIFY"] === "true" || process.env["DEPLOY_TARGET"] === "netlify";
 
+function siteOrigin(): string {
+  const raw = process.env["SITE_URL"] ?? process.env["URL"];
+  try {
+    return raw ? new URL(raw).origin : "";
+  } catch {
+    return "";
+  }
+}
+
 export default defineConfig({
   plugins: [tailwindcss(), reactRouter(), ...(forNetlify ? [netlifyReactRouter()] : [])],
   // See app/lib/production.server.ts.
@@ -15,6 +24,8 @@ export default defineConfig({
     __COINGIST_FORCE_PRODUCTION__: forNetlify ? "true" : "false",
     // See app/lib/image.ts.
     __COINGIST_IMAGE_CDN__: forNetlify ? "true" : "false",
+    // Netlify sets URL (the site's main address) during builds; SITE_URL overrides it.
+    __COINGIST_SITE_ORIGIN__: JSON.stringify(siteOrigin()),
   },
   resolve: { alias: { "~": fileURLToPath(new URL("./app", import.meta.url)) } },
 });
