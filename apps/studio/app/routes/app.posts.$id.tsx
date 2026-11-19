@@ -6,6 +6,7 @@ import type {
   EditorialComment,
   Revision,
   RevisionSummary,
+  StudioEditorBundle,
   StudioPost,
   RichTextNode,
   TagRef,
@@ -39,14 +40,11 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   const auth = await requireAuth(request);
   if (!UUID.test(params.id)) throw data({ error: "Not found" }, { status: 404 });
   const api = studioApi(auth);
-  const base = `/v1/studio/posts/${params.id}`;
-  const [{ post }, { comments }, { revisions }, taxonomy, { blocked }] = await Promise.all([
-    api.get<{ post: StudioPost }>(base),
-    api.get<{ comments: EditorialComment[] }>(`${base}/comments`),
-    api.get<{ revisions: RevisionSummary[] }>(`${base}/revisions`),
-    api.get<{ categories: CategoryRef[]; tags: TagRef[] }>("/v1/studio/taxonomy"),
-    api.get<{ blocked: BlockedLink[] }>(`${base}/link-check`),
-  ]);
+  // One request (and one database transaction) instead of five.
+  const { post, comments, revisions, categories, tags, blocked } = await api.get<StudioEditorBundle>(
+    `/v1/studio/posts/${params.id}/editor`,
+  );
+  const taxonomy: { categories: CategoryRef[]; tags: TagRef[] } = { categories, tags };
   return data({ post, comments, revisions, taxonomy, blocked, siteUrl: env.siteUrl }, { headers: auth.headers });
 }
 

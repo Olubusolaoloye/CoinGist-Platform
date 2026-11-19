@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_BODY_BYTES } from "./richtext.js";
+import type { BlockedLink } from "./commerce.js";
 import type { CategoryRef, ImageRef, RichTextDoc, TagRef } from "./content.js";
 import { POST_STATUSES, POST_TYPES, type PostStatus, type PostType } from "./enums.js";
 
@@ -165,3 +166,14 @@ export const UpdateCategoryInputSchema = z
   })
   .refine((v) => !(v.imageUrl && !v.imageAlt), { message: "Add alt text for the image", path: ["imageAlt"] });
 export type UpdateCategoryInput = z.infer<typeof UpdateCategoryInputSchema>;
+
+/** Everything the story editor needs, loaded in one request. */
+export interface StudioEditorBundle {
+  post: StudioPost;
+  comments: EditorialComment[];
+  revisions: RevisionSummary[];
+  categories: CategoryRef[];
+  tags: TagRef[];
+  /** Links in the story that point at blocked domains. */
+  blocked: BlockedLink[];
+}

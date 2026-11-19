@@ -2,6 +2,7 @@ import {
   sanitizeRichText,
   slugify,
   type Category,
+  type BlockedLink,
   type CategoryRef,
   type CommentInput,
   type CreatePostInput,
@@ -12,6 +13,7 @@ import {
   type Revision,
   type RevisionSummary,
   type RichTextDoc,
+  type StudioEditorBundle,
   type StudioPost,
   type StudioPostSummary,
   type TagRef,
@@ -44,6 +46,11 @@ export interface StudioRepository {
   listRevisions(actor: SessionClaims, postId: string): Promise<RevisionSummary[]>;
   getRevision(actor: SessionClaims, revisionId: string): Promise<Revision | null>;
   listCategories(actor: SessionClaims): Promise<CategoryRef[]>;
+  /**
+   * The story editor's data in one transaction and three queries: the post; then comments,
+   * revisions, categories, tags and blocked links together. Null when the actor can't see it.
+   */
+  editorBundle(actor: SessionClaims, id: string): Promise<StudioEditorBundle | null>;
   listTags(actor: SessionClaims): Promise<TagRef[]>;
   /** Full category records (with cover images) for Admin → Site images. */
   listCategoryDetails(actor: SessionClaims): Promise<Category[]>;
@@ -64,9 +71,9 @@ export type StudioSummaryRow = {
   author_name: string | null;
   category_slug: string | null;
   category_name: string | null;
-  updated_at: Date;
-  scheduled_for: Date | null;
-  published_at: Date | null;
+  updated_at: Date | string;
+  scheduled_for: Date | string | null;
+  published_at: Date | string | null;
   open_comments: number;
   ai_assisted: boolean;
   hero_image_url: string | null;
@@ -178,8 +185,8 @@ type CommentRow = {
   author_id: string;
   author_name: string | null;
   body: string;
-  resolved_at: Date | null;
-  created_at: Date;
+  resolved_at: Date | string | null;
+  created_at: Date | string;
 };
 const COMMENT_SQL = `
   select ec.id, ec.post_id, ec.parent_id, ec.author_id, u.name as author_name, ec.body,
@@ -428,6 +435,47 @@ export function createStudioRepository(db: Database): StudioRepository {
               createdAt: iso(r.created_at)!,
             }
           : null;
+      }),
+
+    editorBundle: (actor, id) =>
+      as(actor, async (q) => {
+        const post = await loadPost(q, id);
+        if (!post) return null;
+        const [rest] = await q.query<{
+          comments: CommentRow[];
+          revisions: Array<{ id: string; title: string; editor_id: string | null; editor_name: string | null; created_at: string }>;
+          categories: CategoryRef[];
+          tags: TagRef[];
+          blocked: BlockedLink[];
+        }>(
+          `select
+             (select coalesce(json_agg(c order by c.created_at), '[]'::json)
+                from (${COMMENT_SQL} where ec.post_id = $1) c) as comments,
+             (select coalesce(json_agg(r order by r.created_at desc), '[]'::json)
+                from (select r.id, r.title, r.editor_id, u.name as editor_name, r.created_at
+                      from public.post_revisions r left join public.users u on u.id = r.editor_id
+                      where r.post_id = $1 order by r.created_at desc limit 100) r) as revisions,
+             (select coalesce(json_agg(json_build_object('slug', slug, 'name', name) order by sort_order, name), '[]'::json)
+                from public.categories) as categories,
+             (select coalesce(json_agg(json_build_object('slug', slug, 'name', name) order by name), '[]'::json)
+                from public.tags) as tags,
+             (select coalesce(json_agg(json_build_object('host', b.host, 'domain', b.domain, 'reason', b.reason)), '[]'::json)
+                from public.post_blocked_links($1) b) as blocked`,
+          [id],
+        );
+        return {
+          post,
+          comments: rest!.comments.map(toComment),
+          revisions: rest!.revisions.map((r) => ({
+            id: r.id,
+            title: r.title,
+            editor: r.editor_id ? { id: r.editor_id, name: r.editor_name } : null,
+            createdAt: iso(r.created_at)!,
+          })),
+          categories: rest!.categories,
+          tags: rest!.tags,
+          blocked: rest!.blocked,
+        };
       }),
 
     listCategories: (actor) =>

@@ -50,6 +50,11 @@ export const studioRoutes = new Hono<AppEnv>()
     const post = await c.var.repos.studio.createPost(c.var.claims!, c.req.valid("json"));
     return c.json({ post }, 201);
   })
+  // The story editor's data in one request (post, comments, history, taxonomy, link check).
+  .get("/posts/:id/editor", requirePermission("post:edit_own"), zValidator("param", Id), async (c) => {
+    const bundle = await c.var.repos.studio.editorBundle(c.var.claims!, c.req.valid("param").id);
+    return bundle ? c.json(bundle) : c.json(NOT_FOUND, 404);
+  })
   .get("/posts/:id", requirePermission("post:create"), zValidator("param", Id), async (c) => {
     const post = await c.var.repos.studio.getPost(c.var.claims!, c.req.valid("param").id);
     return post ? c.json({ post }) : c.json(NOT_FOUND, 404);

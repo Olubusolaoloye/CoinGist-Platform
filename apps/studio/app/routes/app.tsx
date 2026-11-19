@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { data, Form, NavLink, Outlet, useLocation, useSearchParams } from "react-router";
+import { data, Form, NavLink, Outlet, useLocation, useSearchParams, type ShouldRevalidateFunctionArgs } from "react-router";
 import { can, hasAtLeast, isStaff, type Role } from "@coingist/types";
 import type { Route } from "./+types/app";
 import { Wordmark } from "~/components/Wordmark";
@@ -19,6 +19,16 @@ export async function loader({ request }: Route.LoaderArgs) {
     );
   }
   return data({ me }, { headers: auth.headers });
+}
+
+/**
+ * Who's signed in (name, role) rarely changes while Studio is open, so in-app links don't
+ * re-fetch it: only form submissions (which may change it) and full page loads do. Every page's
+ * own loader still checks the session, and the API checks permissions on every request.
+ */
+export function shouldRevalidate({ formMethod, defaultShouldRevalidate }: ShouldRevalidateFunctionArgs) {
+  if (formMethod && formMethod.toUpperCase() !== "GET") return defaultShouldRevalidate;
+  return false;
 }
 
 /** 24px line icons, drawn for Studio's sidebar. */
