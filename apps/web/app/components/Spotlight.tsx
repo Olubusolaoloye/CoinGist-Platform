@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import { postPath, type PostSummary } from "@coingist/types";
 import { formatDate, SECTION_LABEL } from "~/lib/format";
-import { responsiveImage } from "~/lib/image";
+import { Picture } from "./Picture";
 import { Avatar } from "./Avatar";
 
 function label(p: PostSummary) {
@@ -12,8 +12,9 @@ function label(p: PostSummary) {
 function Photo({ post, priority, sizes, maxWidth }: { post: PostSummary; priority: boolean; sizes: string; maxWidth: number }) {
   if (!post.heroImage) return <div aria-hidden="true" className="placeholder-art absolute inset-0" />;
   return (
-    <img
-      {...responsiveImage(post.heroImage.url, maxWidth)}
+    <Picture
+      url={post.heroImage.url}
+      maxWidth={maxWidth}
       alt={post.heroImage.alt}
       width={1600}
       height={900}

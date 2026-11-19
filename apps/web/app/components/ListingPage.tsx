@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { ImageRef, Paginated, PostSummary } from "@coingist/types";
-import { responsiveImage } from "~/lib/image";
+import { Picture } from "./Picture";
 import { Breadcrumbs } from "./Breadcrumbs";
 import { NewsletterBanner } from "./NewsletterBanner";
 import { Pagination } from "./Pagination";
@@ -33,7 +33,7 @@ export function ListingPage({
       <Breadcrumbs items={crumbs} />
       {cover ? (
         <header className="relative isolate mt-4 overflow-hidden rounded-[1.75rem] bg-night">
-          <img {...responsiveImage(cover.url, 768)} sizes="(min-width: 768px) 736px, 100vw" alt={cover.alt} fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
+          <Picture url={cover.url} maxWidth={768} sizes="(min-width: 768px) 736px, 100vw" alt={cover.alt} fetchPriority="high" className="absolute inset-0 h-full w-full object-cover" />
           <div aria-hidden="true" className="absolute inset-0 bg-gradient-to-t from-night/80 via-night/20 to-transparent" />
           <div className="relative flex min-h-[15rem] items-end p-3 sm:min-h-[18rem] sm:p-4">
             <div className="glass-photo w-full rounded-2xl p-4 sm:p-5">
