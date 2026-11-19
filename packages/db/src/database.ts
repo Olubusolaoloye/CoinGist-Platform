@@ -24,39 +24,39 @@ export interface Database {
   close(): Promise<void>;
 }
 
-/** Driver-specific part: run `fn` inside a single transaction. */
-export type TransactionRunner = <T>(fn: (q: Queryable) => Promise<T>) => Promise<T>;
+/**
+ * Driver-specific part: run `fn` inside a single transaction, after running `setup` (plain SQL,
+ * no parameters) at its start. Drivers send `begin` and `setup` together in one round trip.
+ */
+export type TransactionRunner = <T>(fn: (q: Queryable) => Promise<T>, setup: string) => Promise<T>;
+
+/** A SQL string literal (standard_conforming_strings is on in every supported Postgres). */
+function literal(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
 
 export function createDatabase(
   transaction: TransactionRunner,
   close: () => Promise<void>,
 ): Database {
-  async function login(
-    q: Queryable,
-    role: "anon" | "authenticated" | "service_role",
-    claims: Record<string, unknown>,
-  ) {
-    await q.query("select set_config('request.jwt.claims', $1, true)", [JSON.stringify(claims)]);
-    // Role names are constants, never user input.
-    await q.query(`set local role ${role}`);
+  /**
+   * "Log in" for the rest of the transaction: JWT claims for RLS, then the API role. One
+   * statement batch, sent with `begin`, so it costs no extra round trip to the database.
+   */
+  function login(role: "anon" | "authenticated" | "service_role", claims: Record<string, unknown>): string {
+    // Role names are constants, never user input; claims are escaped as a string literal.
+    return `select set_config('request.jwt.claims', ${literal(JSON.stringify(claims))}, true); set local role ${role};`;
   }
 
   return {
     asUser(claims, fn) {
-      return transaction(async (q) => {
-        if (claims) {
-          await login(q, "authenticated", { ...claims, role: "authenticated" });
-        } else {
-          await login(q, "anon", { role: "anon" });
-        }
-        return fn(q);
-      });
+      const setup = claims
+        ? login("authenticated", { ...claims, role: "authenticated" })
+        : login("anon", { role: "anon" });
+      return transaction(fn, setup);
     },
     asService(fn) {
-      return transaction(async (q) => {
-        await login(q, "service_role", { role: "service_role" });
-        return fn(q);
-      });
+      return transaction(fn, login("service_role", { role: "service_role" }));
     },
     close,
   };

@@ -6,10 +6,11 @@ export function createPgDatabase(connectionString: string, opts: { max?: number 
   const pool = new pg.Pool({ connectionString, max: opts.max ?? 10 });
 
   return createDatabase(
-    async (fn) => {
+    async (fn, setup) => {
       const client = await pool.connect();
       try {
-        await client.query("begin");
+        // One round trip: begin plus the login statements (simple query protocol, no params).
+        await client.query(`begin; ${setup}`);
         const result = await fn({
           query: async (sql, params) => (await client.query(sql, params)).rows,
         });
