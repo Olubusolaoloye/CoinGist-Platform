@@ -25,19 +25,18 @@ export function createCoinGeckoProvider(opts: { apiKey?: string | undefined; bas
     sample: false,
     async fetchQuotes() {
       const ids = TICKER_COINS.map((c) => c.id).join(",");
-      const res = await doFetch(`${base}/simple/price?ids=${ids}&vs_currencies=usd,ngn&include_24hr_change=true`, {
+      const res = await doFetch(`${base}/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`, {
         headers: { accept: "application/json", ...(opts.apiKey ? { "x-cg-demo-api-key": opts.apiKey } : {}) },
         signal: AbortSignal.timeout(4000),
       });
       if (!res.ok) throw new Error(`CoinGecko ${res.status}`);
-      const body = (await res.json()) as Record<string, { usd?: number; ngn?: number; usd_24h_change?: number }>;
+      const body = (await res.json()) as Record<string, { usd?: number; usd_24h_change?: number }>;
       return TICKER_COINS.flatMap((c) => {
         const q = body[c.id];
         if (!q || typeof q.usd !== "number" || !Number.isFinite(q.usd)) return [];
         return [{
           ...c,
           usd: q.usd,
-          ngn: typeof q.ngn === "number" && Number.isFinite(q.ngn) ? q.ngn : null,
           change24h: typeof q.usd_24h_change === "number" && Number.isFinite(q.usd_24h_change) ? q.usd_24h_change : null,
         }];
       });
@@ -47,17 +46,17 @@ export function createCoinGeckoProvider(opts: { apiKey?: string | undefined; bas
 
 /** Fixed, clearly labelled sample prices for local development, tests and previews. */
 export function createSamplePriceProvider(): PriceProvider {
-  const sample: Record<string, [number, number, number]> = {
-    bitcoin: [64000, 102_000_000, 1.8], ethereum: [3100, 4_950_000, -0.9], tether: [1, 1595, 0.01],
-    "usd-coin": [1, 1594, 0], solana: [145, 231_000, 3.2], binancecoin: [560, 893_000, -1.4],
+  const sample: Record<string, [number, number]> = {
+    bitcoin: [64000, 1.8], ethereum: [3100, -0.9], tether: [1, 0.01],
+    "usd-coin": [1, 0], solana: [145, 3.2], binancecoin: [560, -1.4],
   };
   return {
     source: "Sample data",
     sample: true,
     async fetchQuotes() {
       return TICKER_COINS.map((c) => {
-        const [usd, ngn, change24h] = sample[c.id]!;
-        return { ...c, usd, ngn, change24h };
+        const [usd, change24h] = sample[c.id]!;
+        return { ...c, usd, change24h };
       });
     },
   };

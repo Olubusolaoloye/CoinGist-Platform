@@ -255,7 +255,7 @@ writes is saved, published or posted on its own, and stories still go through re
   actually collects: newsletter, reader accounts, Plausible, cookies) and `/terms`. They're drafts:
   have the privacy policy and terms reviewed by a lawyer, and name the publishing entity, before
   launch. Contact addresses come from `CONTACT_EMAIL` / `ADVERTISING_EMAIL`.
-- **Price ticker:** BTC, ETH, USDT, USDC, SOL and BNB in dollars and naira with the 24-hour change,
+- **Price ticker:** BTC, ETH, USDT, USDC, SOL and BNB in US dollars with the 24-hour change,
   under the header on every page. The API fetches CoinGecko server-side, caches for a minute,
   serves the last good prices for up to 10 minutes if CoinGecko is down, and the site hides the
   strip rather than failing. Local, test and preview builds use labelled sample prices.

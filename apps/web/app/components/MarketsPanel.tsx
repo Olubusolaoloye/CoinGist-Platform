@@ -2,10 +2,8 @@ import type { PriceTicker } from "@coingist/types";
 
 const usd = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n >= 100 ? 0 : n >= 1 ? 2 : 4 }).format(n);
-const ngn = (n: number) =>
-  `₦${new Intl.NumberFormat("en-NG", { notation: n >= 1_000_000 ? "compact" : "standard", maximumFractionDigits: n >= 1_000_000 ? 1 : 0 }).format(n)}`;
 
-/** Prices beside the news, in dollars and naira. Direction always has an arrow and words. */
+/** Prices beside the news, in US dollars. Direction always has an arrow and words. */
 export function MarketsPanel({ ticker }: { ticker: PriceTicker | null }) {
   if (!ticker || ticker.quotes.length === 0) return null;
   return (
@@ -24,7 +22,6 @@ export function MarketsPanel({ ticker }: { ticker: PriceTicker | null }) {
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{q.name}</p>
-                {q.ngn !== null ? <p className="text-xs text-muted tabular-nums">{ngn(q.ngn)}</p> : null}
               </div>
               <div className="text-right">
                 <p className="font-semibold tabular-nums">{usd(q.usd)}</p>

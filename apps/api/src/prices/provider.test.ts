@@ -8,7 +8,7 @@ describe("CoinGecko provider", () => {
       fetch: (async (url: string) => {
         calls.push(url);
         return new Response(JSON.stringify({
-          bitcoin: { usd: 64000.5, ngn: 1e8, usd_24h_change: 1.25 },
+          bitcoin: { usd: 64000.5, usd_24h_change: 1.25 },
           ethereum: { usd: "oops" },
           tether: { usd: 1 },
         }));
@@ -16,9 +16,10 @@ describe("CoinGecko provider", () => {
     });
     const quotes = await p.fetchQuotes();
     expect(calls[0]).toContain("ids=bitcoin,ethereum,tether");
+    expect(calls[0]).toContain("vs_currencies=usd&");
     expect(quotes).toEqual([
-      { id: "bitcoin", symbol: "BTC", name: "Bitcoin", usd: 64000.5, ngn: 1e8, change24h: 1.25 },
-      { id: "tether", symbol: "USDT", name: "Tether", usd: 1, ngn: null, change24h: null },
+      { id: "bitcoin", symbol: "BTC", name: "Bitcoin", usd: 64000.5, change24h: 1.25 },
+      { id: "tether", symbol: "USDT", name: "Tether", usd: 1, change24h: null },
     ]);
   });
 

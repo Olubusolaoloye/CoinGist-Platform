@@ -2,8 +2,6 @@ import type { PriceTicker as Ticker } from "@coingist/types";
 
 const usd = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n >= 100 ? 0 : n >= 1 ? 2 : 4 }).format(n);
-const ngn = (n: number) =>
-  `₦${new Intl.NumberFormat("en-NG", { notation: n >= 1_000_000 ? "compact" : "standard", maximumFractionDigits: n >= 1_000_000 ? 1 : 0 }).format(n)}`;
 
 /**
  * Prices strip under the header. Server-rendered from the API's cached prices (no browser calls
@@ -20,7 +18,6 @@ export function PriceTicker({ ticker }: { ticker: Ticker }) {
               <li key={q.id} className="flex items-baseline gap-1.5">
                 <abbr title={q.name} className="font-bold no-underline">{q.symbol}</abbr>
                 <span className="tabular-nums">{usd(q.usd)}</span>
-                {q.ngn !== null ? <span className="text-muted tabular-nums">{ngn(q.ngn)}</span> : null}
                 {q.change24h !== null ? (
                   <span className={`tabular-nums font-semibold ${up ? "text-up" : "text-down"}`}>
                     <span aria-hidden="true">{up ? "▲" : "▼"}</span>

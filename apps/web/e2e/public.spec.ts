@@ -210,6 +210,28 @@ test.describe("theme", () => {
   });
 });
 
+test.describe("hosting", () => {
+  // Netlify inserts a comment (and line breaks) at the top of <head>. That used to break
+  // hydration on every page (React #418): the page was rebuilt in the browser and taps were lost.
+  test("pages still hydrate and links work when the host injects a comment into <head>", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.route((url) => url.pathname === "/", async (route) => {
+      const res = await route.fetch();
+      const body = (await res.text()).replace(
+        '<meta charSet="utf-8"/>',
+        '<meta charSet="utf-8"/>\n<!-- This site is hosted on Netlify.\n     Anyone can build and deploy a site like this one. -->',
+      );
+      await route.fulfill({ response: res, body });
+    });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("link", { name: "About" }).first().click();
+    await expect(page).toHaveURL(/\/about$/);
+    expect(errors).toEqual([]);
+  });
+});
+
 test.describe("home and search", () => {
   test("spotlight changes story on request, beside today's gist and editors' picks", async ({ page, isMobile }) => {
     await page.goto("/");
@@ -226,6 +248,9 @@ test.describe("home and search", () => {
     const gist = page.getByRole("region", { name: "Today's gist in 30 seconds" });
     await expect(gist.getByRole("listitem").first()).toBeVisible();
     await expect(page.getByRole("region", { name: "Markets today" })).toBeVisible();
+    // Prices are in US dollars only.
+    await expect(page.getByRole("region", { name: "Markets today" })).not.toContainText("₦");
+    await expect(page.getByRole("region", { name: "Crypto prices" })).not.toContainText("₦");
     if (!isMobile) await expect(page.getByRole("region", { name: "Editors' picks" }).getByRole("listitem")).toHaveCount(5);
   });
 

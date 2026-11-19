@@ -109,8 +109,6 @@ export interface PriceQuote {
   symbol: string;
   name: string;
   usd: number;
-  /** Naira price, for the African lens (null if the source didn't return it). */
-  ngn: number | null;
   /** Percent change over 24 hours (null if unknown). */
   change24h: number | null;
 }
