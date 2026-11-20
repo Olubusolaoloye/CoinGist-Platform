@@ -62,6 +62,32 @@ describe("orders over HTTP", () => {
   });
 });
 
+describe("ad bookings over HTTP", () => {
+  it("edits a booking, sends changed creatives back for approval, and rejects mixed or bad bodies", async () => {
+    const { bookings } = (await (await call("GET", "/v1/studio/ads/bookings", users.editor)).json()) as { bookings: Array<{ id: string; sponsor: { id: string } }> };
+    const created = await call("POST", "/v1/studio/ads/bookings", users.editor, {
+      slotKey: "home-banner",
+      sponsorId: bookings[0]!.sponsor.id,
+      startsAt: "2030-01-01T00:00:00.000Z",
+      endsAt: "2030-01-08T00:00:00.000Z",
+      creativeUrl: "/covers/ad.png",
+      clickUrl: "https://example.com/a",
+      altText: "Banner",
+    });
+    expect(created.status).toBe(201);
+    const { booking } = (await created.json()) as { booking: { id: string } };
+    expect((await call("PATCH", `/v1/studio/ads/bookings/${booking.id}`, users.editor, { approved: true })).status).toBe(200);
+
+    const edited = await call("PATCH", `/v1/studio/ads/bookings/${booking.id}`, users.editor, { altText: "New banner" });
+    expect(edited.status).toBe(200);
+    expect(await edited.json()).toMatchObject({ booking: { altText: "New banner", approved: false } });
+
+    expect((await call("PATCH", `/v1/studio/ads/bookings/${booking.id}`, users.editor, { approved: true, altText: "x" })).status).toBe(400);
+    expect((await call("PATCH", `/v1/studio/ads/bookings/${booking.id}`, users.editor, { clickUrl: "http://example.com" })).status).toBe(400);
+    expect((await call("PATCH", `/v1/studio/ads/bookings/${booking.id}`, users.writer, { altText: "x" })).status).toBe(403);
+  });
+});
+
 describe("public ads", () => {
   it("serves live ads per placement and counts clicks", async () => {
     const res = await app.request("/v1/public/ads?placement=article");

@@ -160,8 +160,7 @@ export interface AdBooking {
   clicks: number;
 }
 
-export const AdBookingInputSchema = z
-  .object({
+const adBookingFields = {
     slotKey: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
     sponsorId: z.string().uuid(),
     startsAt: z.string().datetime({ offset: true }),
@@ -169,10 +168,29 @@ export const AdBookingInputSchema = z
     creativeUrl: z.string().trim().max(1000).regex(/^(https:\/\/|\/[^/])/, "Use an https:// image address"),
     clickUrl: https,
     altText: z.string().trim().min(1, "Describe the ad for screen readers").max(300),
-  })
+};
+export const AdBookingInputSchema = z
+  .object(adBookingFields)
   .strict()
   .refine((b) => Date.parse(b.endsAt) > Date.parse(b.startsAt), { message: "End must be after start", path: ["endsAt"] });
 export type AdBookingInput = z.infer<typeof AdBookingInputSchema>;
+
+/**
+ * Editing a booking. Changing the creative, its alt text or the link takes it back to
+ * "awaiting approval", so nothing new reaches readers without an editor seeing it.
+ */
+export const AdBookingUpdateSchema = z
+  .object({
+    startsAt: adBookingFields.startsAt,
+    endsAt: adBookingFields.endsAt,
+    creativeUrl: adBookingFields.creativeUrl,
+    clickUrl: adBookingFields.clickUrl,
+    altText: adBookingFields.altText,
+  })
+  .partial()
+  .strict()
+  .refine((b) => !b.startsAt || !b.endsAt || Date.parse(b.endsAt) > Date.parse(b.startsAt), { message: "End must be after start", path: ["endsAt"] });
+export type AdBookingUpdate = z.infer<typeof AdBookingUpdateSchema>;
 
 /** What the public site needs to render one slot. */
 export interface PublicAdSlot {

@@ -434,6 +434,21 @@ test.describe("ads and analytics", () => {
     expect((await request.get("/go/ad/00000000-0000-4000-8000-000000000000", { maxRedirects: 0 })).status()).toBe(404);
   });
 
+  test("an ad keeps its slot's shape, whatever size the image is", async ({ page }) => {
+    await page.goto(ARTICLE);
+    const box = await page.getByRole("complementary", { name: "Advertisement" }).getByRole("link").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width / box!.height).toBeCloseTo(3, 1); // article-end is 1200 × 400
+  });
+
+  test("the advertise page shows every placement and its image size", async ({ page }) => {
+    await page.goto("/advertise");
+    for (const [name, size] of [["Home page banner", "1200 × 250"], ["End of story", "1200 × 400"], ["Newsletter sponsor", "600 × 200"]]) {
+      const card = page.locator("div.glass").filter({ has: page.getByRole("heading", { name: name!, level: 3 }) });
+      await expect(card).toContainText(size!);
+    }
+  });
+
   test("sponsored stories carry no ads", async ({ page }) => {
     await page.goto(SPONSORED);
     await expect(page.getByRole("complementary", { name: "Advertisement" })).toHaveCount(0);
