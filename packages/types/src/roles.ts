@@ -32,6 +32,7 @@ export const PERMISSIONS = [
   "audit:view",
   "subscribers:manage",
   "ai:use",
+  "site:manage", // site imagery (category covers)
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 

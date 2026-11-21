@@ -97,6 +97,7 @@ export function profilePageJsonLd(site: SiteConfig, author: AuthorProfile): Ld {
       "@id": `${url}#person`,
       name: author.name,
       url,
+      jobTitle: author.title ?? undefined,
       description: author.bio ?? undefined,
       image: author.avatarUrl ? absoluteUrl(site, author.avatarUrl) : undefined,
       knowsAbout: author.expertise.length ? author.expertise : undefined,

@@ -1,10 +1,10 @@
 import { absoluteUrl } from "@coingist/seo";
-import { isDemo, siteConfig } from "~/lib/config.server";
+import { searchIndexing, siteConfig } from "~/lib/config.server";
 
 export function loader() {
   const site = siteConfig();
-  // Preview deploys carry fictional stories: keep every crawler out.
-  const body = isDemo()
+  // Demo deploys and the temporary netlify.app address: keep every crawler out.
+  const body = !searchIndexing()
     ? "User-agent: *\nDisallow: /\n"
     : [
         "User-agent: *",

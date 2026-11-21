@@ -1,0 +1,29 @@
+# Netlify deploy of Studio (apps/studio) plus the production API (apps/api) at /api/*.
+# Both run against Supabase. Secrets (DATABASE_URL, SUPABASE_ANON_KEY, SESSION_SECRET, ...) are
+# set in the Netlify site's environment variables, never here. See README "Deploying Studio".
+[build]
+  base = "apps/studio"
+  # The API functions are pre-bundled into single files (esbuild); Netlify's own bundler can't
+  # see dependencies that live in other workspace packages.
+  command = "pnpm build:functions && DEPLOY_TARGET=netlify pnpm build"
+  publish = "build/client"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.28.0"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+# The API. Rewrites beat the React Router function's catch-all.
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/api/:splat"
+  status = 200
+  force = true
+
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

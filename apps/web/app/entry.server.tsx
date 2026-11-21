@@ -1,15 +1,19 @@
+import "./lib/production.server";
 import { randomBytes } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
-import { analyticsConfig } from "./lib/config.server";
+import { analyticsConfig, searchIndexing } from "./lib/config.server";
 import { assertReaderAuthConfig, readerAuthMode } from "./lib/reader.server";
 
 // Fail fast on a misconfigured deployment (e.g. dev reader sign-in in production).
 assertReaderAuthConfig();
 import { NonceContext } from "./lib/nonce";
+import { initMonitoring, reportError } from "./lib/monitoring.server";
+
+initMonitoring("web");
 
 export const streamTimeout = 5_000;
 
@@ -47,13 +51,16 @@ function applyDocumentHeaders(headers: Headers, status: number, nonce: string, r
     headers.set("Content-Security-Policy", contentSecurityPolicy(nonce, https));
   }
   // Never let a CDN cache an error page (a transient 404/502 would stick for every reader).
-  if (status >= 400) headers.set("Cache-Control", "no-store");
+  if (status >= 400) {
+    headers.set("Cache-Control", "no-store");
+    headers.delete("Netlify-CDN-Cache-Control");
+  }
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Frame-Options", "DENY");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
   // Preview deploys carry fake stories: keep them out of search engines.
-  if (process.env["DEMO_MODE"] === "true") headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (!searchIndexing()) headers.set("X-Robots-Tag", "noindex, nofollow");
 }
 
 export default function handleRequest(
@@ -114,4 +121,10 @@ export default function handleRequest(
       },
     );
   });
+}
+
+/** Unexpected loader/action/render errors (not aborted requests) are reported. */
+export function handleError(error: unknown, { request }: { request: Request }) {
+  if (request.signal.aborted) return;
+  reportError(error, { url: new URL(request.url).pathname, method: request.method });
 }

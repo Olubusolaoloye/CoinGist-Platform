@@ -13,7 +13,7 @@ const SECTIONS = [
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-md px-3 py-2 font-semibold hover:bg-line ${isActive ? "text-link underline decoration-2 underline-offset-8" : ""}`;
+  `rounded-full px-3.5 py-2 font-semibold hover:bg-line/70 ${isActive ? "bg-night text-night-ink hover:bg-night" : ""}`;
 
 export function SiteHeader({ categories, theme }: { categories: Category[]; theme: ThemePref }) {
   const menu = useRef<HTMLDetailsElement>(null);
@@ -27,8 +27,9 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
   const signedIn = useSignedIn();
 
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
+    <header className="sticky top-0 z-40 px-2 pt-2 sm:px-4 sm:pt-3">
+      <div className="glass glass-strong mx-auto max-w-6xl rounded-2xl">
+      <div className="flex items-center gap-2 px-3 py-2 sm:px-4">
         <Link to="/" className="mr-auto rounded-md py-1" aria-label="CoinGist home">
           <Wordmark />
         </Link>
@@ -115,8 +116,8 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
           </div>
         </details>
       </div>
-      <nav aria-label="Topics" className="border-t border-line">
-        <ul className="no-scrollbar mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 py-1.5 text-sm whitespace-nowrap">
+      <nav aria-label="Topics" className="border-t border-line/60">
+        <ul className="no-scrollbar flex gap-1 overflow-x-auto px-2 py-1.5 text-sm whitespace-nowrap">
           {strip.map((c) => (
             <li key={c.slug}>
               <NavLink
@@ -131,6 +132,7 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
           ))}
         </ul>
       </nav>
+      </div>
     </header>
   );
 }

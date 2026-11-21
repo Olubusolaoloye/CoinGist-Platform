@@ -53,10 +53,11 @@ export async function createPgliteDatabase(
   }
 
   const db = createDatabase(
-    (fn) =>
-      pg.transaction(async (tx) =>
-        fn({ query: async (sql, params) => (await tx.query(sql, params)).rows as never[] }),
-      ),
+    (fn, setup) =>
+      pg.transaction(async (tx) => {
+        await tx.exec(setup);
+        return fn({ query: async (sql, params) => (await tx.query(sql, params)).rows as never[] });
+      }),
     () => pg.close(),
   );
   return { pg, db, fresh };

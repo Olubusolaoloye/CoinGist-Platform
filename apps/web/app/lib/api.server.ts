@@ -6,10 +6,10 @@ import type {
   PostDetail,
   PostSummary,
   PostType,
+  PriceTicker,
   PublicAdSlot,
   SitemapData,
-  TagRef,
-} from "@coingist/types";
+  TagRef, StoryEngagement } from "@coingist/types";
 import { apiUrl } from "./config.server";
 
 /**
@@ -87,6 +87,19 @@ export const api = {
       return [];
     }
   },
+  /** A story's likes and comments (never cached: they change constantly). */
+  async engagement(postId: string): Promise<StoryEngagement> {
+    try {
+      const res = await apiFetch(`/v1/public/posts/${encodeURIComponent(postId)}/engagement`, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) return (await res.json()) as StoryEngagement;
+    } catch {
+      // fall through: show an empty thread rather than break the page
+    }
+    return { likes: 0, comments: [] };
+  },
   async recordAdClick(id: string): Promise<string | null> {
     try {
       const res = await apiFetch(`/v1/public/ads/${encodeURIComponent(id)}/click`, {
@@ -101,6 +114,15 @@ export const api = {
   },
   async sitemap(): Promise<SitemapData> {
     return (await get<SitemapData>("/sitemap"))!;
+  },
+  /** The price ticker never breaks a page: on any error (or no source), there's no strip. */
+  async prices(): Promise<PriceTicker | null> {
+    try {
+      const res = await apiFetch("/v1/public/prices", { headers: { accept: "application/json" }, signal: AbortSignal.timeout(3000) });
+      return res.ok ? ((await res.json()) as PriceTicker) : null;
+    } catch {
+      return null;
+    }
   },
   async getAuthor(slug: string): Promise<AuthorProfile> {
     return (await get<{ author: AuthorProfile }>(`/authors/${encodeURIComponent(slug)}`))!.author;
@@ -123,9 +145,20 @@ export function assertPageInRange(page: number, list: Paginated<unknown>) {
 
 export const HTML_CACHE = "public, max-age=0, s-maxage=60, stale-while-revalidate=300";
 
-/** Loader response that the CDN may cache. Errors are thrown, so they never get this header. */
+/**
+ * Netlify's shared ("durable") cache, which every edge node reads, unlike the per-node edge
+ * cache. Pages refresh at most once a minute; when one has expired, readers get the cached copy
+ * instantly while Netlify re-renders it in the background (for up to a week).
+ */
+export const CDN_HEADERS = {
+  "Netlify-CDN-Cache-Control": "public, durable, s-maxage=60, stale-while-revalidate=604800",
+  // The theme cookie changes the HTML (light/dark class), so cache each variant separately.
+  "Netlify-Vary": "query,cookie=theme",
+} as const;
+
+/** Loader response that the CDN may cache. Errors are thrown, so they never get these headers. */
 export function cached<T>(value: T) {
-  return data(value, { headers: { "Cache-Control": HTML_CACHE } });
+  return data(value, { headers: { "Cache-Control": HTML_CACHE, ...CDN_HEADERS } });
 }
 
 export type SubscribeResult = { ok: true; message: string } | { ok: false; message: string };

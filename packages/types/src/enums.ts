@@ -4,7 +4,7 @@
 export const ROLES = ["reader", "writer", "editor", "admin"] as const;
 export type Role = (typeof ROLES)[number];
 
-export const USER_STATUSES = ["active", "suspended", "deleted"] as const;
+export const USER_STATUSES = ["active", "suspended", "deleted", "deactivated"] as const;
 export type UserStatus = (typeof USER_STATUSES)[number];
 
 export const POST_TYPES = ["news", "gist", "learn", "sponsored"] as const;

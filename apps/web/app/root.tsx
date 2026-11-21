@@ -12,6 +12,7 @@ import {
 import fontUrl from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url";
 import type { Route } from "./+types/root";
 import { BottomNav } from "./components/BottomNav";
+import { PriceTicker } from "./components/PriceTicker";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
@@ -30,11 +31,12 @@ export const links: Route.LinksFunction = () => [
 export async function loader({ request }: Route.LoaderArgs) {
   const site = siteConfig();
   // Navigation must not take the whole site down if the API hiccups.
-  const categories = await api.listCategories().catch(() => []);
+  const [categories, prices] = await Promise.all([api.listCategories().catch(() => []), api.prices()]);
   const analytics = analyticsConfig();
   return data({
     site,
     categories,
+    prices,
     theme: readTheme(request),
     demo: isDemo(),
     analytics: analytics ? { domain: analytics.domain, src: analytics.src } : null,
@@ -71,6 +73,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         ) : null}
       </head>
       <body className="min-h-dvh font-sans antialiased">
+        <div aria-hidden="true" className="page-haze" />
         <a
           href="#main"
           className="sr-only z-50 rounded-md bg-gist px-4 py-2 font-semibold text-gist-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -83,6 +86,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </p>
         ) : null}
         <SiteHeader categories={root?.categories ?? []} theme={theme} />
+        {root?.prices ? <PriceTicker ticker={root.prices} /> : null}
         <div id="main" tabIndex={-1} className="outline-none">
           {children}
         </div>

@@ -12,6 +12,12 @@
   --ok: #1d6b3a;
   --warn: #8a5300;
   --bad: #b3261e;
+  --night: #14163f;
+  --night-2: #1d2056;
+  --night-ink: #eef0fb;
+  --night-muted: #a9aed6;
+  --glass: rgb(255 255 255 / 0.66);
+  --glass-edge: rgb(255 255 255 / 0.7);
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -27,6 +33,8 @@
     --ok: #7fd89c;
     --warn: #ffc072;
     --bad: #ff9b93;
+    --glass: rgb(20 23 61 / 0.6);
+    --glass-edge: rgb(255 255 255 / 0.1);
     color-scheme: dark;
   }
 }
@@ -43,11 +51,31 @@
   --color-ok: var(--ok);
   --color-warn: var(--warn);
   --color-bad: var(--bad);
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-night-ink: var(--night-ink);
+  --color-night-muted: var(--night-muted);
   --font-display: "Bricolage Grotesque", ui-sans-serif, system-ui, sans-serif;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 body { background: var(--paper); color: var(--ink); }
+
+/* Haze behind the work area that the glass panels pick up. */
+.studio-haze {
+  background:
+    radial-gradient(48rem 30rem at 0% 0%, color-mix(in oklab, #3b44a8 14%, transparent), transparent 70%),
+    radial-gradient(36rem 26rem at 100% 0%, color-mix(in oklab, var(--gist) 16%, transparent), transparent 70%),
+    var(--paper);
+}
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--glass-edge);
+  box-shadow: 0 18px 40px -28px rgb(20 22 63 / 0.45);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(16px) saturate(160%);
+}
+.eyebrow { font-size: 0.875rem; font-weight: 600; color: var(--link); }
 :focus-visible { outline: 3px solid var(--link); outline-offset: 2px; border-radius: 4px; }
 
 /* Form controls share one look. */
@@ -64,7 +92,7 @@ body { background: var(--paper); color: var(--ink); }
 .hint { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; }
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
-  min-height: 2.5rem; padding: 0 0.95rem; border-radius: 6px; font-weight: 600;
+  min-height: 2.5rem; padding: 0 0.95rem; border-radius: 999px; font-weight: 600;
   border: 1px solid var(--line); background: var(--surface); color: var(--ink);
 }
 .btn:hover:not(:disabled) { border-color: var(--ink); }
@@ -73,7 +101,7 @@ body { background: var(--paper); color: var(--ink); }
 .btn-primary:hover:not(:disabled) { opacity: 0.9; }
 .btn-gist { background: var(--gist); color: var(--gist-ink); border-color: var(--gist); }
 .btn-danger { color: var(--bad); }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 1rem; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 1.1rem; box-shadow: 0 12px 32px -26px rgb(20 22 63 / 0.4); }
 
 /* ── Editor surface: mirrors the public article typography ─────────────── */
 .ProseMirror { min-height: 24rem; outline: none; font-size: 1.0625rem; line-height: 1.7; }

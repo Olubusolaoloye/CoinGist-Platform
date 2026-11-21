@@ -98,8 +98,8 @@ describe("admin views", () => {
 
   it("keeps subscribers invisible to anonymous and reader sessions", async () => {
     const reader = await t.createUser();
-    for (const claims of [null, reader.claims]) {
-      expect(await t.db.asUser(claims, (q) => q.query("select 1 from public.subscribers"))).toEqual([]);
-    }
+    // Signed out: no access to the table at all. Readers: the table, but no rows (RLS).
+    await expect(t.db.asUser(null, (q) => q.query("select 1 from public.subscribers"))).rejects.toThrow(/permission denied/);
+    expect(await t.db.asUser(reader.claims, (q) => q.query("select 1 from public.subscribers"))).toEqual([]);
   });
 });

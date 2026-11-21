@@ -1,4 +1,5 @@
 import type { ImageRef } from "@coingist/types";
+import { Picture } from "./Picture";
 
 const RATIOS = { wide: "aspect-[16/9]", photo: "aspect-[4/3]" } as const;
 
@@ -23,8 +24,9 @@ export function PostImage({
   if (!image) return <div className={`${box} placeholder-art`} aria-hidden="true" />;
   return (
     <div className={box}>
-      <img
-        src={image.url}
+      <Picture
+        url={image.url}
+        maxWidth={ratio === "wide" ? 1200 : 800}
         alt={image.alt}
         width={ratio === "wide" ? 1200 : 800}
         height={ratio === "wide" ? 675 : 600}

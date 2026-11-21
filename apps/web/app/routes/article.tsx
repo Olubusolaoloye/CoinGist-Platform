@@ -1,4 +1,5 @@
 import { data, Link, redirect } from "react-router";
+import { responsiveImage } from "~/lib/image";
 import { absoluteUrl, breadcrumbJsonLd, buildMeta, newsArticleJsonLd } from "@coingist/seo";
 import { postPath, POST_TYPES, type PostType } from "@coingist/types";
 import { readingTimeMinutes, RichText } from "@coingist/ui";
@@ -12,6 +13,7 @@ import { StoryList } from "~/components/PostCard";
 import { PostImage } from "~/components/PostImage";
 import { FollowButton, SaveButton } from "~/components/ReaderButtons";
 import { ShareBar } from "~/components/ShareBar";
+import { Comments, LikeButton } from "~/components/Comments";
 import { SponsoredBadge } from "~/components/SponsoredBadge";
 import { api, cached } from "~/lib/api.server";
 import { siteConfig } from "~/lib/config.server";
@@ -94,7 +96,7 @@ export default function Article({ loaderData }: Route.ComponentProps) {
           ) : post.category ? (
             <Link
               to={post.category.slug === "africa" ? "/africa" : `/category/${post.category.slug}`}
-              className="text-sm font-semibold text-link hover:underline"
+              className="text-sm font-semibold text-link"
             >
               {post.category.name}
             </Link>
@@ -108,7 +110,7 @@ export default function Article({ loaderData }: Route.ComponentProps) {
             <span>
               By{" "}
               {post.author ? (
-                <Link to={`/author/${post.author.slug}`} className="font-semibold hover:underline">
+                <Link to={`/author/${post.author.slug}`} className="font-semibold">
                   {post.author.name}
                 </Link>
               ) : (
@@ -127,6 +129,13 @@ export default function Article({ loaderData }: Route.ComponentProps) {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-2">
             <SaveButton postId={post.id} title={post.title} />
+            <LikeButton postId={post.id} title={post.title} />
+            <a href="#comments" className="inline-flex min-h-10 items-center gap-1.5 rounded-full border border-line px-4 text-sm font-semibold hover:border-ink">
+              <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden="true">
+                <path d="M4 5h16v11H8l-4 4z" />
+              </svg>
+              Comments
+            </a>
             {post.author ? <FollowButton type="author" slug={post.author.slug} name={post.author.name} postId={post.id} showName /> : null}
           </div>
         </header>
@@ -148,7 +157,13 @@ export default function Article({ loaderData }: Route.ComponentProps) {
         <GistBox bullets={post.summaryBullets} heading="The gist in 30 seconds" className="mt-6" />
 
         <div className="article-body mt-8">
-          <RichText doc={post.body} siteOrigin={site.url} sponsored={post.isSponsored} />
+          <RichText
+            doc={post.body}
+            siteOrigin={site.url}
+            sponsored={post.isSponsored}
+            imageSources={(src) => responsiveImage(src, 720)}
+            imageSizes="(min-width: 768px) 720px, 100vw"
+          />
         </div>
 
         {post.aiAssisted ? (
@@ -182,6 +197,7 @@ export default function Article({ loaderData }: Route.ComponentProps) {
           <ShareBar url={url} title={post.title} />
         </div>
         <Disclaimer className="mt-4" />
+        <Comments postId={post.id} title={post.title} />
         <div className="mt-10">
           <NewsletterSignup
             source="article"

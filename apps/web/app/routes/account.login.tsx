@@ -1,3 +1,4 @@
+import { readForm } from "~/lib/form.server";
 import { data, Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/account.login";
 import { apiUrl, siteConfig } from "~/lib/config.server";
@@ -26,14 +27,14 @@ export async function loader({ request }: Route.LoaderArgs) {
     devUsers = [...all.filter((u) => u.role === "reader"), ...all.filter((u) => u.role !== "reader")];
   }
   return data(
-    { mode, next, devUsers, expired: url.searchParams.has("expired"), error: url.searchParams.get("error") },
+    { mode, next, devUsers, expired: url.searchParams.has("expired"), deactivated: url.searchParams.has("deactivated"), error: url.searchParams.get("error") },
     { headers: privateHeaders() },
   );
 }
 
 export async function action({ request }: Route.ActionArgs) {
   assertSameOrigin(request);
-  const form = await request.formData();
+  const form = await readForm(request);
   const next = safeNext(String(form.get("next") ?? ""));
   const mode = readerAuthMode();
   if (!allow(`reader-login:${clientIp(request)}`, Number(process.env["READER_SIGNINS_PER_10_MIN"] ?? 10), 10 * 60_000)) {
@@ -75,13 +76,18 @@ export async function action({ request }: Route.ActionArgs) {
 }
 
 export default function Login({ loaderData, actionData }: Route.ComponentProps) {
-  const { mode, next, devUsers, expired, error } = loaderData;
+  const { mode, next, devUsers, expired, deactivated, error } = loaderData;
   const busy = useNavigation().state !== "idle";
   return (
     <main className="mx-auto max-w-md px-4 py-10">
       <h1 className="font-display text-4xl font-extrabold tracking-tight">Sign in</h1>
       <p className="mt-2 text-lg text-muted">Save stories to read later, follow writers and topics, and get a feed made for you. Free.</p>
       {expired ? <p className="mt-4 rounded-md border border-warn p-3 text-sm">Your session ended. Sign in again to continue.</p> : null}
+      {deactivated ? (
+        <p role="status" className="mt-4 rounded-md border border-line p-3 text-sm">
+          Your account is deactivated and you&rsquo;ve been signed out. Nothing was deleted: sign in again any time to reactivate it.
+        </p>
+      ) : null}
       {error ? <p role="alert" className="mt-4 rounded-md border border-bad p-3 text-sm">That sign-in link didn't work. It may have expired; try again.</p> : null}
       {actionData?.error ? <p role="alert" className="mt-4 rounded-md border border-bad p-3 text-sm">{actionData.error}</p> : null}
 

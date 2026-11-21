@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
   AdBookingInputSchema,
+  AdBookingUpdateSchema,
   BlockedDomainInputSchema,
   OrderCreateSchema,
   OrderUpdateSchema,
@@ -83,9 +84,15 @@ export const commerceRoutes = new Hono<AppEnv>()
     "/ads/bookings/:id",
     requirePermission("ads:manage"),
     zValidator("param", Id),
-    zValidator("json", z.object({ approved: z.boolean() }).strict()),
-    async (c) =>
-      c.json({ booking: await c.var.repos.commerce.setBookingApproved(c.var.claims!, c.req.valid("param").id, c.req.valid("json").approved) }),
+    // Either approve/pause ({ approved }) or edit the details.
+    zValidator("json", z.object({ approved: z.boolean() }).strict().or(AdBookingUpdateSchema)),
+    async (c) => {
+      const { id } = c.req.valid("param");
+      const body = c.req.valid("json");
+      const repo = c.var.repos.commerce;
+      const booking = "approved" in body ? await repo.setBookingApproved(c.var.claims!, id, body.approved) : await repo.updateBooking(c.var.claims!, id, body);
+      return c.json({ booking });
+    },
   )
   .delete("/ads/bookings/:id", requirePermission("ads:manage"), zValidator("param", Id), async (c) => {
     await c.var.repos.commerce.deleteBooking(c.var.claims!, c.req.valid("param").id);

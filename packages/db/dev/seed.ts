@@ -172,6 +172,11 @@ export async function seedDevData(pg: PGlite): Promise<void> {
     "reader@example.com",
     JSON.stringify({ full_name: "Sample Reader" }),
   ]);
+  // A second reader, for the deactivate/reactivate flow (so it never disturbs other tests).
+  await pg.query("insert into auth.users (email, raw_user_meta_data) values ($1, $2)", [
+    "leaver@example.com",
+    JSON.stringify({ full_name: "Leaving Reader" }),
+  ]);
 
   const catIds: Record<string, string> = {};
   for (const [i, [slug, name, description]] of CATEGORIES.entries()) {

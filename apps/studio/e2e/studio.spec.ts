@@ -22,7 +22,7 @@ async function signOut(page: Page) {
 }
 
 async function createPost(page: Page, title: string, type = "news") {
-  await page.getByRole("link", { name: "New post" }).click();
+  await page.getByRole("link", { name: "New story" }).click();
   await page.getByLabel("Headline").fill(title);
   await page.getByRole("radio", { name: new RegExp(`^${type}`, "i") }).check();
   await page.getByRole("button", { name: "Create draft" }).click();
@@ -211,7 +211,7 @@ test.describe("editor", () => {
     await createPost(page, `Unsaved ${Date.now()}`);
     await page.locator(".ProseMirror").click();
     await page.keyboard.type("Not saved yet");
-    await page.getByRole("navigation", { name: "Studio" }).getByRole("link", { name: "Posts" }).click();
+    await page.getByRole("navigation", { name: "Studio" }).getByRole("link", { name: "Stories" }).click();
     await expect(page.getByText("You have unsaved changes.")).toBeVisible();
     await page.getByRole("button", { name: "Keep editing" }).click();
     await expect(page.locator(".ProseMirror")).toContainText("Not saved yet");
@@ -257,6 +257,66 @@ test.describe("admin", () => {
     await page.getByRole("link", { name: "Audit log" }).click();
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Audit log");
     await expect(page.getByRole("cell", { name: "post.status_changed" }).first()).toBeVisible();
+  });
+});
+
+test.describe("authors", () => {
+  test("a writer edits their own author profile, and it shows on the public author page", async ({ page, request }) => {
+    await signIn(page, WRITER);
+    await page.getByRole("link", { name: "My author profile" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("My author profile");
+    await expect(page.getByLabel("Display name")).toHaveValue(WRITER); // keep the name other tests rely on
+    const title = `Markets reporter ${Date.now()}`;
+    await page.getByLabel("Job title (optional)").fill(title);
+    await page.getByLabel("Topics covered (optional)").fill("Bitcoin, Regulation");
+    await page.getByRole("button", { name: "Save profile" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+    // Writers only see their own profile.
+    await page.goto("/authors");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("My author profile");
+    // The public site shows the job title (once its cache expires; the API is read directly here).
+    const html = await (await request.get(`${WEB}/author/amara-okafor?fresh=${Date.now()}`)).text();
+    expect(html).toContain(title);
+  });
+
+  test("an editor changes a story's byline from the Status panel", async ({ page }) => {
+    await signIn(page, WRITER);
+    await createPost(page, `Byline story ${Date.now()}`);
+    const url = page.url();
+    // Writers see their name but can't change it.
+    await expect(page.getByRole("combobox", { name: "Author (byline)" })).toHaveCount(0);
+    await signOut(page);
+
+    await signIn(page, EDITOR);
+    await page.goto(url);
+    const byline = page.getByRole("combobox", { name: "Author (byline)" });
+    await expect(byline).toHaveValue(/.+/);
+    const saveAuthor = page.getByRole("button", { name: "Save author" });
+    // Retry until the page has hydrated (a choice made before that is reset).
+    await expect(async () => {
+      await byline.selectOption({ label: EDITOR });
+      await expect(saveAuthor).toBeEnabled({ timeout: 1000 });
+    }).toPass();
+    await saveAuthor.click();
+    await expect(page.getByText(`Credited to ${EDITOR}.`)).toBeVisible();
+
+    await page.getByRole("link", { name: "Authors" }).click();
+    await expect(page.getByRole("link", { name: `Edit ${WRITER}'s profile` })).toBeVisible();
+  });
+});
+
+test.describe("reader comments", () => {
+  test("editors moderate reader comments; writers don't see the page", async ({ page }) => {
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Comments" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Reader comments");
+    await page.getByRole("link", { name: "All recent" }).click();
+    await expect(page).toHaveURL(/filter=all/);
+    const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(r.violations.map((v) => v.id)).toEqual([]);
+    await signOut(page);
+    await signIn(page, WRITER);
+    await expect(page.getByRole("link", { name: "Comments" })).toHaveCount(0);
   });
 });
 
@@ -316,22 +376,69 @@ test.describe("sponsorship, ads and link safety", () => {
     await expect(page.getByText("Accepted", { exact: true })).toBeVisible();
   });
 
-  test("ad bookings go live only after approval", async ({ page }) => {
+  test("ad bookings go live only after approval, with a sponsor added on the spot", async ({ page }) => {
     await signIn(page, EDITOR);
     await page.getByRole("link", { name: "Ads" }).click();
     const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-    await page.getByLabel("Slot").selectOption({ label: "Weekly Wrap newsletter sponsor" });
-    await page.getByLabel("Starts").fill(fmt(new Date(Date.now() - 3600_000)));
-    await page.getByLabel("Ends").fill(fmt(new Date(Date.now() + 7 * 86_400_000)));
-    await page.getByLabel("Image address").fill("https://cdn.example/banner.png");
-    await page.getByLabel("Alt text").fill("Test banner");
-    await page.getByLabel("Click-through address").fill("https://advertiser.example");
-    await page.getByRole("button", { name: "Create booking" }).click();
+    const sponsor = `Ad Sponsor ${Date.now()}`;
+    const form = page.getByRole("region", { name: "New booking" });
+    await form.getByLabel("Slot").selectOption({ label: "Weekly Wrap newsletter sponsor" });
+    await form.getByLabel("Sponsor", { exact: true }).selectOption({ label: "+ New sponsor" });
+    await form.getByLabel("Sponsor name").fill(sponsor);
+    await form.getByLabel("Starts").fill(fmt(new Date(Date.now() - 3600_000)));
+    await form.getByLabel("Ends").fill(fmt(new Date(Date.now() + 7 * 86_400_000)));
+    await expect(form.getByRole("button", { name: "Create booking" })).toBeDisabled(); // no image yet
+    await form.getByLabel("Image URL").fill("https://cdn.example/banner.png");
+    await form.getByLabel("Alt text (required)").fill("Test banner");
+    await form.getByLabel("Click-through address").fill("https://advertiser.example");
+    await form.getByRole("button", { name: "Create booking" }).click();
+    await expect(form.getByText("Booking created.")).toBeVisible();
+
     const slot = page.getByRole("region", { name: "Weekly Wrap newsletter sponsor" });
-    await expect(slot.getByText("Awaiting approval")).toBeVisible();
-    await slot.getByRole("button", { name: "Approve" }).click();
-    await expect(slot.getByText("Live")).toBeVisible();
+    const row = slot.getByRole("listitem").filter({ hasText: sponsor });
+    await expect(row.getByText("Awaiting approval")).toBeVisible();
+    await row.getByRole("button", { name: "Approve" }).click();
+    await expect(row.getByText("Live", { exact: true })).toBeVisible();
+    await expect(slot.getByText(`Showing ${sponsor}`)).toBeVisible();
+
+    // Editing the image takes it back to awaiting approval.
+    await row.getByRole("button", { name: "Edit" }).click();
+    await row.getByLabel("Alt text (required)").fill("Updated banner");
+    await row.getByRole("button", { name: "Save changes" }).click();
+    await expect(row.getByText("Awaiting approval")).toBeVisible();
+    await row.getByRole("button", { name: "Approve" }).click();
+    await expect(row.getByText("Live", { exact: true })).toBeVisible();
+    await row.getByRole("button", { name: "Pause" }).click(); // leave the slot free for other tests
+    await expect(row.getByText("Awaiting approval")).toBeVisible();
   });
+
+  test("an ad linking to a blocked domain can't be approved", async ({ page }) => {
+    const domain = `adscam-${Date.now()}.example`;
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Link safety" }).click();
+    await page.getByLabel("Domain").fill(domain);
+    await page.getByLabel("Why it's blocked").fill("Fake airdrop (test)");
+    await page.getByRole("button", { name: "Block domain" }).click();
+    await expect(page.getByText(domain, { exact: true })).toBeVisible();
+
+    await page.getByRole("link", { name: "Ads" }).click();
+    const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    const form = page.getByRole("region", { name: "New booking" });
+    await form.getByLabel("Slot").selectOption({ label: "Daily Gist newsletter sponsor" });
+    await form.getByLabel("Starts").fill(fmt(new Date(Date.now() + 400 * 86_400_000)));
+    await form.getByLabel("Ends").fill(fmt(new Date(Date.now() + 401 * 86_400_000)));
+    await form.getByLabel("Image URL").fill("https://cdn.example/scam.png");
+    await form.getByLabel("Alt text (required)").fill("Scam banner");
+    await form.getByLabel("Click-through address").fill(`https://claim.${domain}/now`);
+    await form.getByRole("button", { name: "Create booking" }).click();
+    await expect(form.getByText("Booking created.")).toBeVisible();
+
+    const row = page.getByRole("region", { name: "Daily Gist newsletter sponsor" }).getByRole("listitem").filter({ hasText: `claim.${domain}` });
+    await row.getByRole("button", { name: "Approve" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "blocked domain" })).toContainText(domain);
+    await expect(row.getByText("Awaiting approval")).toBeVisible();
+  });
+
 
   test("writers can see link safety but not sponsorship or ads", async ({ page }) => {
     await signIn(page, WRITER);
@@ -449,7 +556,7 @@ test.describe("dashboards", () => {
     await signIn(page, ADMIN);
     await page.goto("/admin");
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("Admin");
-    await page.getByRole("link", { name: "Payouts", exact: true }).click();
+    await page.getByRole("navigation", { name: "Studio" }).getByRole("link", { name: "Payouts", exact: true }).click();
 
     const other = page.getByRole("region", { name: "Other payment" });
     await other.getByLabel("Writer").selectOption({ label: WRITER });
@@ -481,6 +588,22 @@ test.describe("dashboards", () => {
     await signIn(page, WRITER);
     await page.getByRole("link", { name: "My earnings" }).click();
     await expect(page.getByRole("row").filter({ hasText: note })).toContainText("Paid");
+  });
+
+  test("admin invites a writer by email, sees it waiting, and can cancel it", async ({ page }) => {
+    await signIn(page, ADMIN);
+    await page.goto("/admin/team");
+    const email = `invitee-${Date.now()}@example.com`;
+    const form = page.getByRole("region", { name: "Invite someone" });
+    await form.getByLabel("Email address").fill(email);
+    await expect(form.getByLabel("Role")).toHaveValue("writer");
+    await form.getByRole("button", { name: "Send invite" }).click();
+    await expect(page.getByRole("status")).toContainText(`Invite saved for ${email}`);
+    const row = form.getByRole("listitem").filter({ hasText: email });
+    await expect(row).toContainText("writer");
+    await row.getByRole("button", { name: `Cancel invite to ${email}` }).click();
+    await expect(page.getByRole("status")).toHaveText(`Invite for ${email} cancelled.`);
+    await expect(form.getByRole("listitem").filter({ hasText: email })).toHaveCount(0);
   });
 
   test("admin changes a role and suspends an account, and can't lock themselves out", async ({ page }) => {

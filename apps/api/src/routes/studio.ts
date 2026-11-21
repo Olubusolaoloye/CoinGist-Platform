@@ -2,6 +2,8 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
+  AuthorProfileInputSchema,
+  MODERATION_FILTERS,
   CalendarQuerySchema,
   CommentInputSchema,
   CreatePostInputSchema,
@@ -16,6 +18,7 @@ const Id = z.object({ id: z.string().uuid() });
 const ListQuery = z.object({
   status: PostStatusSchema.optional(),
   mine: z.enum(["true", "false"]).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   page: z.coerce.number().int().min(1).max(1000).default(1),
   pageSize: z.coerce.number().int().min(1).max(100).default(25),
 });
@@ -39,6 +42,7 @@ export const studioRoutes = new Hono<AppEnv>()
     const list = await c.var.repos.studio.listPosts(c.var.claims!, {
       status: q.status,
       mine: q.mine === "true",
+      search: q.q,
       page: q.page,
       pageSize: q.pageSize,
     });
@@ -47,6 +51,11 @@ export const studioRoutes = new Hono<AppEnv>()
   .post("/posts", requirePermission("post:create"), zValidator("json", CreatePostInputSchema), async (c) => {
     const post = await c.var.repos.studio.createPost(c.var.claims!, c.req.valid("json"));
     return c.json({ post }, 201);
+  })
+  // The story editor's data in one request (post, comments, history, taxonomy, link check).
+  .get("/posts/:id/editor", requirePermission("post:edit_own"), zValidator("param", Id), async (c) => {
+    const bundle = await c.var.repos.studio.editorBundle(c.var.claims!, c.req.valid("param").id);
+    return bundle ? c.json(bundle) : c.json(NOT_FOUND, 404);
   })
   .get("/posts/:id", requirePermission("post:create"), zValidator("param", Id), async (c) => {
     const post = await c.var.repos.studio.getPost(c.var.claims!, c.req.valid("param").id);
@@ -121,6 +130,42 @@ export const studioRoutes = new Hono<AppEnv>()
   .get("/revisions/:id", requirePermission("post:edit_own"), zValidator("param", Id), async (c) => {
     const revision = await c.var.repos.studio.getRevision(c.var.claims!, c.req.valid("param").id);
     return revision ? c.json({ revision }) : c.json(NOT_FOUND, 404);
+  })
+  // Authors: everyone edits their own profile; editors edit anyone's and choose story bylines.
+  // The database enforces who may do what.
+  .get("/authors", requirePermission("post:create"), async (c) =>
+    c.json({ authors: await c.var.repos.authors.list(c.var.claims!) }),
+  )
+  .put("/authors/:id", requirePermission("post:create"), zValidator("param", Id), zValidator("json", AuthorProfileInputSchema), async (c) =>
+    c.json({ slug: await c.var.repos.authors.saveProfile(c.var.claims!, c.req.valid("param").id, c.req.valid("json")) }),
+  )
+  .put(
+    "/posts/:id/author",
+    requirePermission("post:review"),
+    zValidator("param", Id),
+    zValidator("json", z.object({ authorId: z.string().uuid() }).strict()),
+    async (c) => {
+      await c.var.repos.authors.setPostAuthor(c.var.claims!, c.req.valid("param").id, c.req.valid("json").authorId);
+      return c.body(null, 204);
+    },
+  )
+  // Reader comments: editors moderate (the database checks the role).
+  .get("/reader-comments", requirePermission("post:review"), zValidator("query", z.object({ filter: z.enum(MODERATION_FILTERS).default("reported") })), async (c) =>
+    c.json({ comments: await c.var.repos.engagement.moderation(c.var.claims!, c.req.valid("query").filter) }),
+  )
+  .patch(
+    "/reader-comments/:id",
+    requirePermission("post:review"),
+    zValidator("param", Id),
+    zValidator("json", z.object({ hidden: z.boolean() }).strict()),
+    async (c) => {
+      await c.var.repos.engagement.setHidden(c.var.claims!, c.req.valid("param").id, c.req.valid("json").hidden);
+      return c.body(null, 204);
+    },
+  )
+  .delete("/reader-comments/:id", requirePermission("post:review"), zValidator("param", Id), async (c) => {
+    await c.var.repos.engagement.deleteComment(c.var.claims!, c.req.valid("param").id);
+    return c.body(null, 204);
   })
   .get("/review-queue", requirePermission("post:review"), async (c) =>
     c.json({ posts: await c.var.repos.studio.reviewQueue(c.var.claims!) }),

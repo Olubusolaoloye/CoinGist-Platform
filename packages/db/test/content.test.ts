@@ -67,6 +67,7 @@ describe("public content", () => {
       slug: "tunde-bello",
       name: "Tunde Bello",
       avatarUrl: null,
+      title: null,
       bio: expect.any(String),
       socials: {},
       expertise: ["Regulation", "Policy"],

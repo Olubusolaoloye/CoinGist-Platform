@@ -1,6 +1,8 @@
 import {
   sanitizeRichText,
   slugify,
+  type Category,
+  type BlockedLink,
   type CategoryRef,
   type CommentInput,
   type CreatePostInput,
@@ -11,10 +13,12 @@ import {
   type Revision,
   type RevisionSummary,
   type RichTextDoc,
+  type StudioEditorBundle,
   type StudioPost,
   type StudioPostSummary,
   type TagRef,
   type TransitionInput,
+  type UpdateCategoryInput,
   type UpdatePostInput,
 } from "@coingist/types";
 import type { Database, Queryable, SessionClaims } from "./database.js";
@@ -28,7 +32,7 @@ import { DomainError, mapDbError } from "./errors.js";
 export interface StudioRepository {
   listPosts(
     actor: SessionClaims,
-    q: { status?: PostStatus | undefined; mine?: boolean; page: number; pageSize: number },
+    q: { status?: PostStatus | undefined; mine?: boolean; search?: string | undefined; page: number; pageSize: number },
   ): Promise<Paginated<StudioPostSummary>>;
   reviewQueue(actor: SessionClaims): Promise<StudioPostSummary[]>;
   getPost(actor: SessionClaims, id: string): Promise<StudioPost | null>;
@@ -42,7 +46,16 @@ export interface StudioRepository {
   listRevisions(actor: SessionClaims, postId: string): Promise<RevisionSummary[]>;
   getRevision(actor: SessionClaims, revisionId: string): Promise<Revision | null>;
   listCategories(actor: SessionClaims): Promise<CategoryRef[]>;
+  /**
+   * The story editor's data in one transaction and three queries: the post; then comments,
+   * revisions, categories, tags and blocked links together. Null when the actor can't see it.
+   */
+  editorBundle(actor: SessionClaims, id: string): Promise<StudioEditorBundle | null>;
   listTags(actor: SessionClaims): Promise<TagRef[]>;
+  /** Full category records (with cover images) for Admin → Site images. */
+  listCategoryDetails(actor: SessionClaims): Promise<Category[]>;
+  /** RLS: editors and admins may update categories. Null when not found. */
+  updateCategory(actor: SessionClaims, slug: string, input: UpdateCategoryInput): Promise<Category | null>;
 }
 
 const iso = (d: Date | string | null) =>
@@ -58,17 +71,20 @@ export type StudioSummaryRow = {
   author_name: string | null;
   category_slug: string | null;
   category_name: string | null;
-  updated_at: Date;
-  scheduled_for: Date | null;
-  published_at: Date | null;
+  updated_at: Date | string;
+  scheduled_for: Date | string | null;
+  published_at: Date | string | null;
   open_comments: number;
+  ai_assisted: boolean;
+  hero_image_url: string | null;
+  hero_image_alt: string | null;
   total?: number;
 };
 
 export const STUDIO_SUMMARY_SQL = `
   select p.id, p.type, p.title, p.slug, p.status, p.author_id, u.name as author_name,
          c.slug as category_slug, c.name as category_name,
-         p.updated_at, p.scheduled_for, p.published_at,
+         p.updated_at, p.scheduled_for, p.published_at, p.ai_assisted, p.hero_image_url, p.hero_image_alt,
          (select count(*)::int from public.editorial_comments ec
            where ec.post_id = p.id and ec.resolved_at is null) as open_comments
   from public.posts p
@@ -87,6 +103,8 @@ export const toStudioSummary = (r: StudioSummaryRow): StudioPostSummary => ({
   scheduledFor: iso(r.scheduled_for),
   publishedAt: iso(r.published_at),
   openComments: r.open_comments,
+  aiAssisted: r.ai_assisted,
+  heroImage: r.hero_image_url ? { url: r.hero_image_url, alt: r.hero_image_alt ?? "" } : null,
 });
 
 type PostRow = {
@@ -167,8 +185,8 @@ type CommentRow = {
   author_id: string;
   author_name: string | null;
   body: string;
-  resolved_at: Date | null;
-  created_at: Date;
+  resolved_at: Date | string | null;
+  created_at: Date | string;
 };
 const COMMENT_SQL = `
   select ec.id, ec.post_id, ec.parent_id, ec.author_id, u.name as author_name, ec.body,
@@ -225,14 +243,15 @@ export function createStudioRepository(db: Database): StudioRepository {
     db.asUser(actor, fn).catch(mapDbError);
 
   return {
-    listPosts: (actor, { status, mine, page, pageSize }) =>
+    listPosts: (actor, { status, mine, search, page, pageSize }) =>
       as(actor, async (q) => {
         const rows = await q.query<StudioSummaryRow>(
           `select *, count(*) over ()::int as total from (${STUDIO_SUMMARY_SQL}
              where ($1::public.post_status is null or p.status = $1)
-               and (not $2::boolean or p.author_id = $3)) s
+               and (not $2::boolean or p.author_id = $3)
+               and ($6::text is null or p.title ilike '%' || $6 || '%' or u.name ilike '%' || $6 || '%' or c.name ilike '%' || $6 || '%')) s
            order by updated_at desc limit $4 offset $5`,
-          [status ?? null, mine ?? false, actor.sub, pageSize, (page - 1) * pageSize],
+          [status ?? null, mine ?? false, actor.sub, pageSize, (page - 1) * pageSize, search ? search.replace(/[\\%_]/g, (m) => `\\${m}`) : null],
         );
         return { items: rows.map(toStudioSummary), page, pageSize, total: rows[0]?.total ?? 0 };
       }),
@@ -418,9 +437,70 @@ export function createStudioRepository(db: Database): StudioRepository {
           : null;
       }),
 
+    editorBundle: (actor, id) =>
+      as(actor, async (q) => {
+        const post = await loadPost(q, id);
+        if (!post) return null;
+        const [rest] = await q.query<{
+          comments: CommentRow[];
+          revisions: Array<{ id: string; title: string; editor_id: string | null; editor_name: string | null; created_at: string }>;
+          categories: CategoryRef[];
+          tags: TagRef[];
+          blocked: BlockedLink[];
+        }>(
+          `select
+             (select coalesce(json_agg(c order by c.created_at), '[]'::json)
+                from (${COMMENT_SQL} where ec.post_id = $1) c) as comments,
+             (select coalesce(json_agg(r order by r.created_at desc), '[]'::json)
+                from (select r.id, r.title, r.editor_id, u.name as editor_name, r.created_at
+                      from public.post_revisions r left join public.users u on u.id = r.editor_id
+                      where r.post_id = $1 order by r.created_at desc limit 100) r) as revisions,
+             (select coalesce(json_agg(json_build_object('slug', slug, 'name', name) order by sort_order, name), '[]'::json)
+                from public.categories) as categories,
+             (select coalesce(json_agg(json_build_object('slug', slug, 'name', name) order by name), '[]'::json)
+                from public.tags) as tags,
+             (select coalesce(json_agg(json_build_object('host', b.host, 'domain', b.domain, 'reason', b.reason)), '[]'::json)
+                from public.post_blocked_links($1) b) as blocked`,
+          [id],
+        );
+        return {
+          post,
+          comments: rest!.comments.map(toComment),
+          revisions: rest!.revisions.map((r) => ({
+            id: r.id,
+            title: r.title,
+            editor: r.editor_id ? { id: r.editor_id, name: r.editor_name } : null,
+            createdAt: iso(r.created_at)!,
+          })),
+          categories: rest!.categories,
+          tags: rest!.tags,
+          blocked: rest!.blocked,
+        };
+      }),
+
     listCategories: (actor) =>
       as(actor, (q) => q.query<CategoryRef>("select slug, name from public.categories order by sort_order, name")),
     listTags: (actor) => as(actor, (q) => q.query<TagRef>("select slug, name from public.tags order by name")),
+
+    listCategoryDetails: (actor) =>
+      as(actor, async (q) => {
+        const rows = await q.query<CategoryDetailRow>(
+          "select slug, name, description, image_url, image_alt from public.categories order by sort_order, name",
+        );
+        return rows.map(toCategoryDetail);
+      }),
+
+    updateCategory: (actor, slug, input) =>
+      as(actor, async (q) => {
+        const rows = await q.query<CategoryDetailRow>(
+          `update public.categories
+             set description = nullif($2, ''), image_url = nullif($3, ''), image_alt = case when nullif($3, '') is null then null else nullif($4, '') end
+           where slug = $1
+           returning slug, name, description, image_url, image_alt`,
+          [slug, input.description ?? "", input.imageUrl ?? "", input.imageAlt ?? ""],
+        );
+        return rows[0] ? toCategoryDetail(rows[0]) : null;
+      }),
   };
 }
 
@@ -428,4 +508,21 @@ export function createStudioRepository(db: Database): StudioRepository {
 async function slugExistsAnywhere(q: Queryable, slug: string): Promise<boolean> {
   const rows = await q.query<{ taken: boolean }>("select public.slug_taken($1) as taken", [slug]);
   return rows[0]?.taken ?? false;
+}
+
+interface CategoryDetailRow {
+  slug: string;
+  name: string;
+  description: string | null;
+  image_url: string | null;
+  image_alt: string | null;
+}
+
+function toCategoryDetail(r: CategoryDetailRow): Category {
+  return {
+    slug: r.slug,
+    name: r.name,
+    description: r.description,
+    image: r.image_url ? { url: r.image_url, alt: r.image_alt ?? "" } : null,
+  };
 }

@@ -35,6 +35,7 @@ const ENDPOINTS: Record<string, Call> = {
     body: { status: "active" },
   },
   "GET audit-logs": { method: "GET", path: () => "/v1/admin/audit-logs" },
+  "GET invites": { method: "GET", path: () => "/v1/admin/invites" },
   "GET dashboard": { method: "GET", path: () => "/v1/admin/dashboard" },
   "GET payments": { method: "GET", path: () => "/v1/admin/payments" },
   "GET unpaid stories": { method: "GET", path: () => "/v1/admin/payments/unpaid-stories" },
@@ -115,6 +116,37 @@ describe("role management", () => {
     expect((await call(ENDPOINTS["GET /v1/admin/users"]!, token)).status).toBe(200);
     await patchRole(second.id, { role: "reader" });
     expect((await call(ENDPOINTS["GET /v1/admin/users"]!, token)).status).toBe(403);
+  });
+});
+
+describe("staff invites", () => {
+  const post = async (body: unknown, actor = users.admin) =>
+    app.request("/v1/admin/invites", {
+      method: "POST",
+      headers: { ...bearer(await tokenFor(actor)), "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  it("invites a new address as a writer by default, lists it, and cancels it", async () => {
+    const res = await post({ email: "  Fresh.Writer@Example.com " });
+    expect(res.status).toBe(201);
+    expect(await res.json()).toEqual({ outcome: "invited", email: "fresh.writer@example.com", role: "writer" });
+
+    const list = (await (await app.request("/v1/admin/invites", { headers: bearer(await tokenFor(users.admin)) })).json()) as { invites: Array<{ id: string; email: string }> };
+    const invite = list.invites.find((i) => i.email === "fresh.writer@example.com")!;
+    expect(invite).toBeDefined();
+    const del = await app.request(`/v1/admin/invites/${invite.id}`, { method: "DELETE", headers: bearer(await tokenFor(users.admin)) });
+    expect(del.status).toBe(204);
+  });
+
+  it("gives an existing account the role at once, and rejects bad input and non-admins", async () => {
+    const someone = await t.createUser();
+    const res = await post({ email: someone.email, role: "editor" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ outcome: "existing" });
+    expect((await post({ email: "nope" })).status).toBe(400);
+    expect((await post({ email: "a@example.com", role: "reader" })).status).toBe(400);
+    expect((await post({ email: "a@example.com" }, users.editor)).status).toBe(403);
   });
 });
 

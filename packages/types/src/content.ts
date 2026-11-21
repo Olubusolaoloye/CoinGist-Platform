@@ -18,6 +18,8 @@ export interface CategoryRef {
 }
 export interface Category extends CategoryRef {
   description: string | null;
+  /** Cover image, editable by admins in Studio (Admin → Site images). */
+  image: ImageRef | null;
 }
 
 export interface TagRef {
@@ -31,6 +33,8 @@ export interface AuthorRef {
   avatarUrl: string | null;
 }
 export interface AuthorProfile extends AuthorRef {
+  /** Job title, e.g. "Markets reporter". */
+  title: string | null;
   bio: string | null;
   socials: Record<string, string>;
   expertise: string[];
@@ -100,3 +104,22 @@ export interface SitemapData {
 
 /** Tag pages with fewer stories than this are noindex and left out of sitemaps. */
 export const MIN_INDEXABLE_TAG_POSTS = 3;
+
+/** One coin in the site's price ticker. */
+export interface PriceQuote {
+  id: string;
+  symbol: string;
+  name: string;
+  usd: number;
+  /** Percent change over 24 hours (null if unknown). */
+  change24h: number | null;
+}
+
+export interface PriceTicker {
+  quotes: PriceQuote[];
+  /** Data source, shown as attribution. */
+  source: string;
+  updatedAt: string;
+  /** True for the built-in sample data (local development, tests, previews). */
+  sample: boolean;
+}

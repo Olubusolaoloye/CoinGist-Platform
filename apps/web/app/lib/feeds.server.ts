@@ -9,7 +9,7 @@ import {
 } from "@coingist/seo";
 import { postPath, type PostSummary, type SitemapData } from "@coingist/types";
 import { api } from "./api.server";
-import { isDemo, siteConfig } from "./config.server";
+import { searchIndexing, siteConfig } from "./config.server";
 import { SECTION_LABEL } from "./format";
 
 export function xmlResponse(body: string, contentType: string, maxAge: number): Response {
@@ -17,8 +17,9 @@ export function xmlResponse(body: string, contentType: string, maxAge: number): 
     headers: {
       "Content-Type": `${contentType}; charset=utf-8`,
       "Cache-Control": `public, max-age=0, s-maxage=${maxAge}, stale-while-revalidate=${maxAge * 5}`,
+      "Netlify-CDN-Cache-Control": `public, durable, s-maxage=${maxAge}, stale-while-revalidate=604800`,
       "X-Content-Type-Options": "nosniff",
-      ...(isDemo() ? { "X-Robots-Tag": "noindex, nofollow" } : {}),
+      ...(!searchIndexing() ? { "X-Robots-Tag": "noindex, nofollow" } : {}),
     },
   });
 }
@@ -38,6 +39,9 @@ export function pageUrls(site: SiteConfig, data: SitemapData): SitemapUrl[] {
     { loc: absoluteUrl(site, "/newsletter") },
     { loc: absoluteUrl(site, "/about") },
     { loc: absoluteUrl(site, "/editorial-policy") },
+    { loc: absoluteUrl(site, "/advertise") },
+    { loc: absoluteUrl(site, "/privacy") },
+    { loc: absoluteUrl(site, "/terms") },
     ...data.categories.map((c) => ({ loc: absoluteUrl(site, categoryPath(c.slug)), lastmod: c.lastPublishedAt })),
     ...data.authors.map((a) => ({ loc: absoluteUrl(site, `/author/${a.slug}`), lastmod: a.lastPublishedAt })),
     ...data.tags.map((t) => ({ loc: absoluteUrl(site, `/tag/${t.slug}`), lastmod: t.lastPublishedAt })),

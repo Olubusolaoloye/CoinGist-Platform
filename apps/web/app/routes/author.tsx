@@ -1,4 +1,5 @@
 import { breadcrumbJsonLd, buildMeta, profilePageJsonLd } from "@coingist/seo";
+import { fixedImage } from "~/lib/image";
 import { safeHref } from "@coingist/ui";
 import type { Route } from "./+types/author";
 import { Breadcrumbs } from "~/components/Breadcrumbs";
@@ -74,7 +75,7 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
       <header className="mt-5 flex flex-col gap-5 border-b-2 border-ink pb-6 sm:flex-row sm:items-start">
         {author.avatarUrl ? (
           <img
-            src={author.avatarUrl}
+            src={fixedImage(author.avatarUrl, 96)}
             alt=""
             width={96}
             height={96}
@@ -93,6 +94,7 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
             <h1 className="font-display text-4xl font-extrabold tracking-tight">{author.name}</h1>
             <FollowButton type="author" slug={author.slug} name={author.name} />
           </div>
+          {author.title ? <p className="mt-1 font-semibold text-muted">{author.title}</p> : null}
           {author.bio ? <p className="mt-2 max-w-[60ch] text-lg text-muted">{author.bio}</p> : null}
           {author.expertise.length > 0 ? (
             <div className="mt-3">
@@ -110,7 +112,7 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
             <ul className="mt-3 flex flex-wrap gap-4 text-sm">
               {socials.map(([k, href]) => (
                 <li key={k}>
-                  <a href={href} rel="me noopener noreferrer" target="_blank" className="font-medium text-link hover:underline">
+                  <a href={href} rel="me noopener noreferrer" target="_blank" className="font-medium text-link">
                     {SOCIAL_LABEL[k] ?? k}
                     <span className="sr-only"> (opens in a new tab)</span>
                   </a>

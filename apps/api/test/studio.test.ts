@@ -147,3 +147,65 @@ describe("studio flow over HTTP", () => {
     expect(res.status).toBe(413);
   });
 });
+
+describe("story editor bundle", () => {
+  it("returns the post, comments, history, taxonomy and link check in one response", async () => {
+    const created = await call("POST", "/v1/studio/posts", users.writer, { type: "news", title: "Bundle story" });
+    const { post } = (await created.json()) as { post: { id: string } };
+    await call("PATCH", `/v1/studio/posts/${post.id}`, users.writer, { title: "Bundle story, edited" });
+    await call("POST", `/v1/studio/posts/${post.id}/comments`, users.writer, { body: "Note to self" });
+
+    const res = await call("GET", `/v1/studio/posts/${post.id}/editor`, users.writer);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    const b = (await res.json()) as {
+      post: { id: string; title: string };
+      comments: Array<{ body: string; createdAt: string }>;
+      revisions: Array<{ createdAt: string }>;
+      categories: Array<{ slug: string }>;
+      tags: Array<{ slug: string }>;
+      blocked: unknown[];
+    };
+    expect(b.post).toMatchObject({ id: post.id, title: "Bundle story, edited" });
+    expect(b.comments.map((c) => c.body)).toEqual(["Note to self"]);
+    expect(new Date(b.comments[0]!.createdAt).toISOString()).toBe(b.comments[0]!.createdAt);
+    expect(b.revisions.length).toBeGreaterThan(0);
+    expect(b.categories.length).toBeGreaterThan(0);
+    expect(b.tags.length).toBeGreaterThan(0);
+    expect(b.blocked).toEqual([]);
+
+    // Same rules as the separate endpoints: other writers can't see a draft, readers get 403.
+    const other = await t.createUser({ role: "writer" });
+    expect((await call("GET", `/v1/studio/posts/${post.id}/editor`, other)).status).toBe(404);
+    expect((await call("GET", `/v1/studio/posts/${post.id}/editor`, users.reader)).status).toBe(403);
+  });
+});
+
+describe("authors over HTTP", () => {
+  const body = { name: "Kemi Writer", title: "Markets reporter", bio: "", avatarUrl: "", socials: { x: "https://x.com/kemi" }, expertise: ["Bitcoin"] };
+
+  it("a writer saves their own profile and sees only themselves; editors see all staff", async () => {
+    const saved = await call("PUT", `/v1/studio/authors/${users.writer.id}`, users.writer, body);
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({ slug: "kemi-writer" });
+    const mine = (await (await call("GET", "/v1/studio/authors", users.writer)).json()) as { authors: Array<{ id: string }> };
+    expect(mine.authors.map((x) => x.id)).toEqual([users.writer.id]);
+    const all = (await (await call("GET", "/v1/studio/authors", users.editor)).json()) as { authors: Array<{ id: string; title: string | null }> };
+    expect(all.authors.length).toBeGreaterThan(1);
+    expect(all.authors.find((x) => x.id === users.writer.id)?.title).toBe("Markets reporter");
+  });
+
+  it("refuses edits to someone else from a writer, bad links, and readers", async () => {
+    expect((await call("PUT", `/v1/studio/authors/${users.editor.id}`, users.writer, body)).status).toBe(403);
+    expect((await call("PUT", `/v1/studio/authors/${users.writer.id}`, users.writer, { ...body, socials: { x: "javascript:alert(1)" } })).status).toBe(400);
+    expect((await call("GET", "/v1/studio/authors", users.reader)).status).toBe(403);
+  });
+
+  it("only editors change a story's byline", async () => {
+    const created = await call("POST", "/v1/studio/posts", users.writer, { type: "news", title: "Byline test story" });
+    const { post } = (await created.json()) as { post: { id: string } };
+    expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.writer, { authorId: users.editor.id })).status).toBe(403);
+    expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.editor, { authorId: users.editor.id })).status).toBe(204);
+    expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.editor, { authorId: users.reader.id })).status).toBe(409);
+  });
+});

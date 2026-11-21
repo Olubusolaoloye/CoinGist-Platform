@@ -1,3 +1,4 @@
+import { readForm } from "~/lib/form.server";
 import { useEffect } from "react";
 import { data, Form, useNavigation } from "react-router";
 import { breadcrumbJsonLd, buildMeta } from "@coingist/seo";
@@ -18,7 +19,7 @@ export function loader() {
 
 /** Handles every signup form on the site (footer and article forms post here too). */
 export async function action({ request }: Route.ActionArgs) {
-  const form = await request.formData();
+  const form = await readForm(request);
   const noStore = { "Cache-Control": "no-store" };
   const max = Number(process.env["NEWSLETTER_SIGNUPS_PER_10_MIN"] ?? 5);
   if (!allow(`newsletter:${clientIp(request)}`, max, 10 * 60_000)) {

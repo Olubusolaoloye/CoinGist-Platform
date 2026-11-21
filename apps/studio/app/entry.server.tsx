@@ -1,3 +1,4 @@
+import "./lib/production.server";
 import { randomBytes } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
@@ -5,6 +6,9 @@ import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
 import { NonceContext } from "./lib/nonce";
+import { initMonitoring, reportError } from "./lib/monitoring.server";
+
+initMonitoring("studio");
 import { assertEnv, env } from "./lib/env.server";
 
 // Fail fast on a misconfigured deployment (e.g. dev sign-in enabled in production).
@@ -111,4 +115,10 @@ export default function handleRequest(
       },
     );
   });
+}
+
+/** Unexpected loader/action/render errors (not aborted requests) are reported. */
+export function handleError(error: unknown, { request }: { request: Request }) {
+  if (request.signal.aborted) return;
+  reportError(error, { url: new URL(request.url).pathname, method: request.method });
 }

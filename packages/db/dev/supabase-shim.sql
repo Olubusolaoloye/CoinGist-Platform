@@ -1,5 +1,9 @@
 -- Test-only stand-in for what Supabase provides before our migrations run.
 -- Mirrors Supabase's definitions of auth.uid()/auth.jwt(), its API roles and default grants.
+-- Default grants follow current Supabase projects, where tables created by migrations are NOT
+-- readable or writable by anon/authenticated/service_role until a migration grants it, and
+-- functions aren't executable by PUBLIC. (Older projects granted everything by default; our
+-- migrations work either way because they grant exactly what each role needs.)
 -- NEVER apply this to a real Supabase project.
 
 create role anon nologin noinherit;
@@ -7,9 +11,8 @@ create role authenticated nologin noinherit;
 create role service_role nologin noinherit bypassrls;
 
 grant usage on schema public to anon, authenticated, service_role;
-alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
-alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+alter default privileges in schema public grant truncate, references, trigger on tables to anon, authenticated, service_role;
+alter default privileges in schema public revoke execute on functions from public;
 
 create schema auth;
 grant usage on schema auth to anon, authenticated, service_role;

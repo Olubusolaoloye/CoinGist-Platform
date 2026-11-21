@@ -7,6 +7,13 @@ export interface RichTextOptions {
   siteOrigin?: string;
   /** Sponsored content: outbound links get rel="sponsored" (Google requirement). */
   sponsored?: boolean;
+  /**
+   * Right-sized sources for body images (e.g. through an image CDN). Called only with URLs that
+   * already passed the safety check; whatever it returns is used as-is.
+   */
+  imageSources?: (src: string) => { src: string; srcSet?: string };
+  /** The `sizes` attribute for body images, when `imageSources` gives a srcSet. */
+  imageSizes?: string;
 }
 
 /**
@@ -67,7 +74,15 @@ function renderNode(node: RichTextNode, opts: RichTextOptions, key: string): Rea
       const caption = typeof node.attrs?.["title"] === "string" ? node.attrs["title"] : null;
       return (
         <figure>
-          <img src={src} alt={alt} width={width} height={height} loading="lazy" decoding="async" />
+          <img
+            {...(opts.imageSources ? opts.imageSources(src) : { src })}
+            {...(opts.imageSources && opts.imageSizes ? { sizes: opts.imageSizes } : {})}
+            alt={alt}
+            width={width}
+            height={height}
+            loading="lazy"
+            decoding="async"
+          />
           {caption ? <figcaption>{caption}</figcaption> : null}
         </figure>
       );

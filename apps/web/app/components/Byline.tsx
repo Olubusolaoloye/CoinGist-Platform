@@ -6,7 +6,7 @@ export function Byline({ post, className = "" }: { post: PostSummary; className?
   return (
     <p className={`flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted ${className}`}>
       {post.author ? (
-        <Link to={`/author/${post.author.slug}`} className="font-medium text-ink hover:underline">
+        <Link to={`/author/${post.author.slug}`} className="font-medium text-ink">
           {post.author.name}
         </Link>
       ) : (

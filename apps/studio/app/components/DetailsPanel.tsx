@@ -1,5 +1,6 @@
 import { POST_TYPES, type CategoryRef, type TagRef } from "@coingist/types";
 import type { Draft } from "~/lib/draft";
+import { ImageField } from "./ImageField";
 
 export function DetailsPanel({
   draft,
@@ -79,19 +80,14 @@ export function DetailsPanel({
         <p className="hint">Shown in the yellow box at the top of the story.</p>
       </fieldset>
 
-      <div>
-        <label htmlFor="heroUrl" className="label">Hero image</label>
-        <input id="heroUrl" className="field" placeholder="https://… or /path" value={draft.heroImageUrl} disabled={!editable}
-          onChange={(e) => set({ heroImageUrl: e.target.value })} />
-        {draft.heroImageUrl ? (
-          <>
-            <label htmlFor="heroAlt" className="label mt-2">Hero image alt text (required)</label>
-            <input id="heroAlt" className="field" value={draft.heroImageAlt} disabled={!editable} required
-              onChange={(e) => set({ heroImageAlt: e.target.value })} />
-          </>
-        ) : null}
-        <p className="hint">16:9, at least 1200px wide. Uploads arrive with media storage.</p>
-      </div>
+      <ImageField
+        label="Hero image"
+        url={draft.heroImageUrl}
+        alt={draft.heroImageAlt}
+        disabled={!editable}
+        onChange={({ url, alt }) => set({ heroImageUrl: url, heroImageAlt: alt })}
+        hint="16:9, at least 1200px wide. JPG, PNG, WebP or AVIF up to 5 MB."
+      />
 
       {canFeature ? (
         <label className="flex items-start gap-2 text-sm">

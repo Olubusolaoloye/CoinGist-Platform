@@ -149,6 +149,31 @@ describe("ads", () => {
     await expect(c.createBooking(writer.claims, booking(20, 1))).rejects.toMatchObject({ kind: "forbidden" });
   });
 
+  it("won't approve an ad whose click-through link goes to a blocked domain", async () => {
+    await c.blockDomain(editor.claims, { domain: "rug-pull.example", reason: "Fake token sale" });
+    const bad = await c.createBooking(editor.claims, { ...booking(40, 1), clickUrl: "https://www.app.rug-pull.example/buy" });
+    await expect(c.setBookingApproved(editor.claims, bad.id, true)).rejects.toMatchObject({ kind: "conflict", message: expect.stringMatching(/rug-pull\.example/) });
+    // Fixing the link makes it approvable.
+    await c.updateBooking(editor.claims, bad.id, { clickUrl: "https://advertiser.example/fixed" });
+    await expect(c.setBookingApproved(editor.claims, bad.id, true)).resolves.toMatchObject({ approved: true });
+    // Changing an approved ad's link pauses it, and it can't be re-approved while the link is blocked.
+    const paused = await c.updateBooking(editor.claims, bad.id, { clickUrl: "https://rug-pull.example/" });
+    expect(paused.approved).toBe(false);
+    await expect(c.setBookingApproved(editor.claims, bad.id, true)).rejects.toMatchObject({ kind: "conflict" });
+  });
+
+  it("edits a booking's details, and needs approval again when the creative or link changes", async () => {
+    const b = await c.createBooking(editor.claims, booking(50, 2));
+    await c.setBookingApproved(editor.claims, b.id, true);
+    const moved = await c.updateBooking(editor.claims, b.id, { endsAt: new Date(Date.now() + 53 * day).toISOString() });
+    expect(moved.approved).toBe(true); // dates alone keep the approval
+    const same = await c.updateBooking(editor.claims, b.id, { altText: "Advertiser banner" });
+    expect(same.approved).toBe(true); // unchanged text keeps it too
+    const changed = await c.updateBooking(editor.claims, b.id, { creativeUrl: "https://cdn.example/new.png", altText: "New banner" });
+    expect(changed).toMatchObject({ approved: false, creativeUrl: "https://cdn.example/new.png", altText: "New banner" });
+    await expect(c.updateBooking(writer.claims, b.id, { altText: "x" })).rejects.toMatchObject({ kind: "not_found" });
+  });
+
   it("rejects non-https click URLs at the database", async () => {
     await expect(c.createBooking(editor.claims, { ...booking(30, 1), clickUrl: "javascript:alert(1)" })).rejects.toMatchObject({ kind: "invalid" });
   });

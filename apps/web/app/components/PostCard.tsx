@@ -14,7 +14,7 @@ function Kicker({ post }: { post: PostSummary }) {
 /** Whole-card link without nesting links: the title link stretches over the card. */
 function TitleLink({ post, className }: { post: PostSummary; className: string }) {
   return (
-    <Link to={postPath(post)} className={`after:absolute after:inset-0 hover:underline ${className}`}>
+    <Link to={postPath(post)} className={`after:absolute after:inset-0 ${className}`}>
       {post.title}
     </Link>
   );
