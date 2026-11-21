@@ -63,11 +63,17 @@ describe("reader account API", () => {
     expect(await (await call("GET", "/follows", reader)).json()).toEqual({ follows: [] });
   });
 
-  it("clears all reading data", async () => {
-    await call("PUT", `/bookmarks/${postId}`, reader);
-    await call("PUT", "/follows", reader, { type: "author", slug: "ama-writer" });
-    expect((await call("DELETE", "/data", reader)).status).toBe(204);
-    expect(await (await call("GET", "/state", reader)).json()).toEqual({ bookmarked: false, follows: [] });
+  it("deactivates an account (keeping its data) and reactivates it on the next sign-in", async () => {
+    const leaver = await t.createUser();
+    await call("PUT", `/bookmarks/${postId}`, leaver);
+    expect((await call("POST", "/deactivate", leaver)).status).toBe(204);
+    expect((await call("GET", "/state", leaver)).status).toBe(403); // locked out while deactivated
+    expect((await call("POST", "/deactivate", writer)).status).toBe(409); // staff: an admin manages it
+    const back = await call("POST", "/reactivate", leaver);
+    expect(await back.json()).toEqual({ reactivated: true });
+    expect(await (await call("GET", `/state?postId=${postId}`, leaver)).json()).toMatchObject({ bookmarked: true });
+    expect(await (await call("POST", "/reactivate", leaver)).json()).toEqual({ reactivated: false });
+    expect((await call("POST", "/reactivate", null)).status).toBe(401);
   });
 });
 

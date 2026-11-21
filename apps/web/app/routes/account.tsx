@@ -7,7 +7,7 @@ import { SponsoredBadge } from "~/components/SponsoredBadge";
 import { formatDate } from "~/lib/format";
 import { privateHeaders } from "~/lib/private.server";
 import { pageParam } from "~/lib/api.server";
-import { assertSameOrigin, withReader } from "~/lib/reader.server";
+import { assertSameOrigin, signOut, withReader } from "~/lib/reader.server";
 
 export const headers = ({ loaderHeaders, actionHeaders }: Route.HeadersArgs) => (actionHeaders.has("Cache-Control") ? actionHeaders : loaderHeaders);
 
@@ -19,7 +19,7 @@ export async function loader({ request }: Route.LoaderArgs) {
   const page = pageParam(request);
   return withReader(request, async (api, auth) => {
     const [{ user }, saved, { follows }] = await Promise.all([api.me(), api.bookmarks(page), api.follows()]);
-    return data({ email: user.email, name: user.name, saved, follows }, { headers: privateHeaders(auth.headers) });
+    return data({ email: user.email, name: user.name, role: user.role, saved, follows }, { headers: privateHeaders(auth.headers) });
   });
 }
 
@@ -31,21 +31,24 @@ export async function action({ request }: Route.ActionArgs) {
   return withReader(request, async (api, auth) => {
     if (intent === "unsave") await api.unsave(String(form.get("postId")));
     else if (intent === "unfollow") await api.unfollow({ type: form.get("type") as "author", slug: String(form.get("slug")) });
-    else if (intent === "clear") await api.clear();
+    else if (intent === "deactivate") {
+      await api.deactivate();
+      throw redirect("/account/login?deactivated=1", { headers: privateHeaders(await signOut(request)) });
+    }
     else if (intent === "name") {
       const parsed = DisplayNameSchema.safeParse({ name: form.get("name") });
       if (!parsed.success) throw redirect("/account?name=invalid", { headers: privateHeaders(auth.headers) });
       await api.setName(parsed.data.name);
       throw redirect("/account?name=saved", { headers: privateHeaders(auth.headers) });
     }
-    throw redirect(intent === "clear" ? "/account?cleared=1" : "/account", { headers: privateHeaders(auth.headers) });
+    throw redirect("/account", { headers: privateHeaders(auth.headers) });
   });
 }
 
 const FOLLOW_PATH = { author: "/author/", category: "/category/", tag: "/tag/" } as const;
 
 export default function Account({ loaderData }: Route.ComponentProps) {
-  const { email, name, saved, follows } = loaderData;
+  const { email, name, role, saved, follows } = loaderData;
   const busy = useNavigation().state !== "idle";
   return (
     <main className="mx-auto max-w-3xl px-4 pt-6 pb-10">
@@ -53,6 +56,7 @@ export default function Account({ loaderData }: Route.ComponentProps) {
         <h1 className="font-display text-[2.4rem] leading-tight font-extrabold tracking-tight sm:text-5xl">Your account</h1>
         <p className="mt-2 text-muted">Signed in as <strong className="text-ink">{name ?? email}</strong>{name ? ` (${email})` : ""}</p>
         <p className="mt-3"><Link to="/for-you" className="font-semibold text-link underline">Go to your feed</Link></p>
+        <WelcomeBack />
       </header>
 
       <section aria-labelledby="name-h" className="mt-8">
@@ -123,11 +127,23 @@ export default function Account({ loaderData }: Route.ComponentProps) {
           <Form method="post" action="/account/logout">
             <button className="rounded-md border border-line px-4 py-2.5 font-semibold hover:border-ink">Sign out</button>
           </Form>
-          <Form method="post" onSubmit={(e) => { if (!window.confirm("Remove all your saved stories and follows? This can't be undone.")) e.preventDefault(); }}>
-            <button name="intent" value="clear" className="rounded-md border border-line px-4 py-2.5 font-semibold text-bad hover:border-bad">Clear my saved stories and follows</button>
-          </Form>
+          {role === "reader" ? (
+            <Form
+              method="post"
+              onSubmit={(e) => {
+                if (!window.confirm("Deactivate your account? You'll be signed out and your comments hidden. Sign in again any time to bring it all back.")) e.preventDefault();
+              }}
+            >
+              <button name="intent" value="deactivate" className="rounded-md border border-line px-4 py-2.5 font-semibold text-bad hover:border-bad">Deactivate my account</button>
+            </Form>
+          ) : null}
         </div>
-        <p className="mt-3 text-sm text-muted">Newsletter subscriptions are separate: use the unsubscribe link in any email. To delete your account entirely, email the editors.</p>
+        <p className="mt-3 text-sm text-muted">
+          {role === "reader"
+            ? "Deactivating signs you out and hides your comments. Nothing is deleted: your saved stories, follows and comments come back when you sign in again. "
+            : "Staff accounts are managed by an admin in CoinGist Studio. "}
+          Newsletter subscriptions are separate: use the unsubscribe link in any email.
+        </p>
       </section>
     </main>
   );
@@ -139,4 +155,14 @@ function NameNotice() {
   if (state === "saved") return <p role="status" className="mt-2 text-sm text-ok">Name saved.</p>;
   if (state === "invalid") return <p role="alert" className="mt-2 text-sm text-bad">Enter a name of up to 60 characters.</p>;
   return null;
+}
+
+function WelcomeBack() {
+  const [params] = useSearchParams();
+  if (params.get("welcome") !== "back") return null;
+  return (
+    <p role="status" className="mt-4 rounded-md border border-ok p-3 text-sm">
+      Welcome back. Your account is active again, with your saved stories, follows and comments just as you left them.
+    </p>
+  );
 }

@@ -123,7 +123,22 @@ export async function requireReader(request: Request): Promise<ReaderAuth> {
 }
 
 /** Start a session from an access token (dev/demo). */
+/**
+ * Right after sign-in: a deactivated account comes back to life (a suspended one doesn't).
+ * Returns where to send them: the welcome-back notice if it was deactivated, otherwise `next`.
+ */
+export async function afterSignIn(accessToken: string, next: string): Promise<string> {
+  try {
+    const res = await call({ token: accessToken, headers: new Headers() }, "POST", "/reactivate");
+    if (res.ok && ((await res.json()) as { reactivated?: boolean }).reactivated) return "/account?welcome=back";
+  } catch {
+    // Never block sign-in on this.
+  }
+  return next;
+}
+
 export async function signInWithToken(accessToken: string, next: string) {
+  next = await afterSignIn(accessToken, next);
   const session = await tokenSession.getSession();
   session.set("accessToken", accessToken);
   const headers = new Headers();
@@ -179,7 +194,9 @@ export class SignedOut extends Error {}
 async function json<T>(res: Response): Promise<T> {
   if (res.status === 401) throw new SignedOut();
   if (res.status === 204) return undefined as T;
-  const body = (await res.json().catch(() => ({}))) as { error?: { message?: string } } & T;
+  const body = (await res.json().catch(() => ({}))) as { error?: { code?: string; message?: string } } & T;
+  // A deactivated (or suspended) account is treated as signed out on this browser.
+  if (res.status === 403 && body.error?.code === "account_inactive") throw new SignedOut();
   if (!res.ok) throw data({ error: body.error?.message ?? "Something went wrong" }, { status: res.status === 404 ? 404 : res.status >= 500 ? 502 : res.status });
   return body;
 }
@@ -195,7 +212,7 @@ export function readerApi(auth: ReaderAuth) {
     follows: () => call(auth, "GET", "/follows").then((r) => json<{ follows: FollowTarget[] }>(r)),
     follow: (f: FollowInput) => call(auth, "PUT", "/follows", f).then((r) => json<{ follow: FollowTarget }>(r)),
     unfollow: (f: FollowInput) => call(auth, "DELETE", `/follows/${f.type}/${encodeURIComponent(f.slug)}`).then((r) => json<void>(r)),
-    clear: () => call(auth, "DELETE", "/data").then((r) => json<void>(r)),
+    deactivate: () => call(auth, "POST", "/deactivate").then((r) => json<void>(r)),
     myEngagement: (postId: string) => call(auth, "GET", `/posts/${postId}/engagement`).then((r) => json<MyEngagement>(r)),
     comment: (postId: string, body: string, parentId?: string) =>
       call(auth, "POST", `/posts/${postId}/comments`, parentId ? { body, parentId } : { body }).then((r) => json<{ id: string }>(r)),

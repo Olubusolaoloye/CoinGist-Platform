@@ -217,3 +217,35 @@ test.describe("comments and likes", () => {
     await expect(page.getByRole("status").filter({ hasText: "Name saved." })).toBeVisible();
   });
 });
+
+test.describe("deactivating an account", () => {
+  test.beforeEach(({ isMobile }) => {
+    test.skip(isMobile, "Runs once, on desktop.");
+  });
+
+  test("deactivate signs you out and keeps everything; signing in again brings it back", async ({ page }) => {
+    await signIn(page, "Leaving Reader", ARTICLE);
+    await page.goto(ARTICLE);
+    const save = page.getByRole("button", { name: /Saved? "Stablecoin transfers climb/ });
+    if ((await save.getAttribute("aria-pressed")) !== "true") await clickAndSettle(page, /Saved? "Stablecoin transfers climb/);
+
+    await page.goto("/account");
+    page.once("dialog", (d) => d.accept());
+    await page.getByRole("button", { name: "Deactivate my account" }).click();
+    await expect(page).toHaveURL(/\/account\/login\?deactivated=1/);
+    await expect(page.getByRole("status")).toContainText("Nothing was deleted");
+
+    // Signing in again reactivates the account, with saved stories intact.
+    await page.getByRole("button", { name: /Sign in as Leaving Reader/ }).click();
+    await expect(page).toHaveURL("/account?welcome=back");
+    await expect(page.getByRole("status").filter({ hasText: "Welcome back" })).toBeVisible();
+    await expect(page.getByRole("region", { name: /Saved stories/ }).getByRole("link", { name: /Stablecoin transfers climb/ })).toBeVisible();
+  });
+
+  test("staff don't get a deactivate button", async ({ page }) => {
+    await signIn(page, "Kwame Mensah", "/account");
+    await page.goto("/account");
+    await expect(page.getByRole("button", { name: "Deactivate my account" })).toHaveCount(0);
+    await expect(page.getByText("Staff accounts are managed by an admin")).toBeVisible();
+  });
+});

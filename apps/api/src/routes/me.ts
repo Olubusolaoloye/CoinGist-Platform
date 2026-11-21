@@ -101,7 +101,8 @@ export const meRoutes = new Hono<AppEnv>()
     await c.var.repos.engagement.setDisplayName(c.var.claims!, c.req.valid("json").name);
     return c.body(null, 204);
   })
-  .delete("/data", async (c) => {
-    await c.var.repos.readers.clear(c.var.claims!);
+  // Deactivate (readers only). Nothing is deleted; signing in again reactivates the account.
+  .post("/deactivate", async (c) => {
+    await c.var.repos.readers.deactivate(c.var.claims!);
     return c.body(null, 204);
   });

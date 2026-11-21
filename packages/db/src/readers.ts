@@ -14,7 +14,10 @@ export interface ReaderRepository {
   state(actor: SessionClaims, postId: string | null): Promise<ReaderState>;
   feed(actor: SessionClaims, q: { page: number; pageSize: number }): Promise<ReaderFeed>;
   /** Forget everything this reader saved or followed. */
-  clear(actor: SessionClaims): Promise<void>;
+  /** Readers only. The account and everything linked to it stays; signing in again reactivates it. */
+  deactivate(actor: SessionClaims): Promise<void>;
+  /** Reactivates a deactivated account (not a suspended one). True if it was deactivated. */
+  reactivate(actor: SessionClaims): Promise<boolean>;
 }
 
 const PUBLISHED = "p.status = 'published' and p.published_at <= now()";
@@ -135,11 +138,12 @@ export function createReaderRepository(db: Database): ReaderRepository {
         return { items, page, pageSize, total: rows[0]?.total ?? 0, follows: await follows(q, actor) };
       }),
 
-    clear: (actor) =>
+    deactivate: (actor) =>
       as(actor, async (q) => {
-        await q.query("delete from public.bookmarks where user_id = $1", [actor.sub]);
-        await q.query("delete from public.follows where user_id = $1", [actor.sub]);
-        await q.query("select public.forget_my_engagement()");
+        await q.query("select public.deactivate_me()");
       }),
+
+    reactivate: (actor) =>
+      as(actor, async (q) => (await q.query<{ ok: boolean }>("select public.reactivate_me() as ok"))[0]!.ok),
   };
 }

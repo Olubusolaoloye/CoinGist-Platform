@@ -185,7 +185,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               const isMe = u.id === meId;
               const staff = u.role !== "reader";
               return (
-                <tr key={u.id} className={u.status === "suspended" ? "opacity-70" : ""}>
+                <tr key={u.id} className={u.status !== "active" ? "opacity-70" : ""}>
                   <th scope="row" className="px-4 py-2 font-normal">
                     <span className="block font-semibold">{label}{isMe ? " (you)" : ""}</span>
                     <span className="text-muted">{u.email}</span>
@@ -207,24 +207,25 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                   <td className="px-4 py-2 text-muted">{formatShortDate(u.createdAt)}</td>
                   <td className="px-4 py-2">
                     {u.status === "suspended" ? <span className="mr-2 font-semibold text-bad">Suspended</span> : null}
+                    {u.status === "deactivated" ? <span className="mr-2 font-semibold text-muted" title="They deactivated their own account. Signing in again reactivates it.">Deactivated by them</span> : null}
                     {isMe ? null : (
                       <Form
                         method="post"
                         className="inline"
                         onSubmit={(e) => {
-                          if (u.status !== "suspended" && !window.confirm(`Suspend ${label}? They'll be signed out of Studio and can't sign in.`)) e.preventDefault();
+                          if (u.status === "active" && !window.confirm(`Suspend ${label}? They'll be signed out of Studio and can't sign in.`)) e.preventDefault();
                         }}
                       >
                         <input type="hidden" name="id" value={u.id} />
                         <input type="hidden" name="name" value={label} />
                         <button
                           name="intent"
-                          value={u.status === "suspended" ? "reactivate" : "suspend"}
-                          className={`font-semibold hover:underline ${u.status === "suspended" ? "text-link" : "text-bad"}`}
+                          value={u.status !== "active" ? "reactivate" : "suspend"}
+                          className={`font-semibold hover:underline ${u.status !== "active" ? "text-link" : "text-bad"}`}
                           disabled={busy}
-                          aria-label={`${u.status === "suspended" ? "Reactivate" : "Suspend"} ${label}`}
+                          aria-label={`${u.status !== "active" ? "Reactivate" : "Suspend"} ${label}`}
                         >
-                          {u.status === "suspended" ? "Reactivate" : "Suspend"}
+                          {u.status !== "active" ? "Reactivate" : "Suspend"}
                         </button>
                       </Form>
                     )}

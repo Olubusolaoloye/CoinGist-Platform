@@ -97,6 +97,12 @@ export function createApp(deps: AppDeps) {
   app.route("/v1/public/newsletter", newsletterPublicRoutes(deps.newsletter));
   app.route("/v1/webhooks", newsletterWebhookRoutes(deps.newsletterWebhookSecret));
   app.route("/v1/admin/subscribers", newsletterAdminRoutes(deps.newsletter));
+  // Called right after sign-in. Registered outside /v1/me because that requires an active account.
+  app.post("/v1/me/reactivate", async (c) => {
+    c.header("Cache-Control", "private, no-store");
+    if (!c.var.claims || !c.var.user) return c.json({ error: { code: "unauthenticated", message: "Sign in required" } }, 401);
+    return c.json({ reactivated: await c.var.repos.readers.reactivate(c.var.claims) });
+  });
   app.route("/v1/me", meRoutes);
   app.route("/v1/admin", adminRoutes);
   if (deps.ai) app.route("/v1/studio/ai", aiRoutes(deps.ai));

@@ -13,7 +13,6 @@ export interface EngagementRepository {
   likeComment(actor: SessionClaims, id: string, on: boolean): Promise<number>;
   report(actor: SessionClaims, id: string, reason: string): Promise<void>;
   setDisplayName(actor: SessionClaims, name: string): Promise<void>;
-  forget(actor: SessionClaims): Promise<void>;
   /** Editors: comments to moderate. */
   moderation(actor: SessionClaims, filter: ModerationFilter): Promise<ModerationComment[]>;
   setHidden(actor: SessionClaims, id: string, hidden: boolean): Promise<void>;
@@ -85,11 +84,6 @@ export function createEngagementRepository(db: Database): EngagementRepository {
     setDisplayName: (actor, name) =>
       as(actor, async (q) => {
         await q.query("update public.users set name = $2 where id = $1", [actor.sub, name]);
-      }),
-
-    forget: (actor) =>
-      as(actor, async (q) => {
-        await q.query("select public.forget_my_engagement()");
       }),
 
     moderation: (actor, filter) =>

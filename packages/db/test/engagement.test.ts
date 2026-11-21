@@ -131,9 +131,16 @@ describe("reports and moderation", () => {
     expect(log.rows.map((r) => r.action)).toEqual(["comment.restored", "comment.hidden", "comment.deleted"]);
   });
 
-  it("'delete my data' removes a reader's likes and comment text", async () => {
-    await createReaderRepository(t.db).clear(ada.claims);
-    expect((await e.mine(ada.claims, post)).likedPost).toBe(false);
-    expect((await e.story(post)).comments.some((c) => c.author?.id === ada.id)).toBe(false);
+  it("a deactivated reader's comments are hidden, kept, and come back when they return", async () => {
+    const readers = createReaderRepository(t.db);
+    const mine = () => e.story(post).then((s) => s.comments.filter((c) => c.author?.id === ada.id));
+    const before = (await mine()).length;
+    expect(before).toBeGreaterThan(0);
+    await readers.deactivate(ada.claims);
+    expect(await mine()).toHaveLength(0);
+    expect((await t.pg.query("select 1 from public.comments where user_id = $1", [ada.id])).rows.length).toBeGreaterThan(0); // still stored
+    await expect(e.addComment(ada.claims, post, "still here?")).rejects.toMatchObject({ kind: "forbidden" });
+    await readers.reactivate(ada.claims);
+    expect(await mine()).toHaveLength(before);
   });
 });
