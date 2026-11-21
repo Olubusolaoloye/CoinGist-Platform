@@ -321,7 +321,7 @@ body {
 
   /* Buttons and pill links lift, and press down when clicked. */
   :is(button, summary, a[class*="rounded-full"], a[class*="rounded-md"], a[class*="rounded-lg"]):not(:disabled) {
-    transition: transform 0.18s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+    transition: transform 0.18s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
   :is(button, summary, a[class*="rounded-full"], a[class*="rounded-md"], a[class*="rounded-lg"]):not(:disabled):hover {
     transform: translateY(-1px);
