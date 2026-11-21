@@ -48,6 +48,7 @@ const ICONS = {
   payouts: "M3 7h18v10H3zM7 12h.01M17 12h.01M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
   images: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01",
   author: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4.2-6 8-6s7 2 8 6",
+  comments: "M4 5h16v11H9l-5 4z",
 } as const;
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -69,7 +70,11 @@ function navFor(role: Role, userId: string): Array<{ title: string | null; links
   const work: Link[] = [{ to: "/posts", label: "Stories", icon: "board", end: true }];
   if (hasAtLeast(role, "editor")) {
     work.unshift({ to: "/dashboard", label: "Dashboard", icon: "dashboard" });
-    work.push({ to: "/review", label: "Review queue", icon: "review" }, { to: "/trending", label: "Trending", icon: "trending" });
+    work.push(
+      { to: "/review", label: "Review queue", icon: "review" },
+      { to: "/comments", label: "Comments", icon: "comments" },
+      { to: "/trending", label: "Trending", icon: "trending" },
+    );
   }
   const business: Link[] = [];
   if (can(role, "sponsored:manage")) business.push({ to: "/sponsored", label: "Sponsored", icon: "sponsored" });

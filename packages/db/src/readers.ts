@@ -139,6 +139,7 @@ export function createReaderRepository(db: Database): ReaderRepository {
       as(actor, async (q) => {
         await q.query("delete from public.bookmarks where user_id = $1", [actor.sub]);
         await q.query("delete from public.follows where user_id = $1", [actor.sub]);
+        await q.query("select public.forget_my_engagement()");
       }),
   };
 }

@@ -85,6 +85,13 @@ export function createApp(deps: AppDeps) {
     c.header("Netlify-CDN-Cache-Control", "public, durable, s-maxage=60, stale-while-revalidate=3600");
     return c.json(ticker);
   });
+  // Likes and comments change all the time: never cached (registered before the cached public routes).
+  app.get("/v1/public/posts/:id/engagement", async (c) => {
+    c.header("Cache-Control", "no-store");
+    const id = c.req.param("id");
+    if (!/^[0-9a-f-]{36}$/i.test(id)) return c.json({ error: { code: "not_found", message: "Not found" } }, 404);
+    return c.json(await c.var.repos.engagement.story(id));
+  });
   app.route("/v1/public", publicRoutes);
   app.route("/v1/public/ads", publicAdRoutes);
   app.route("/v1/public/newsletter", newsletterPublicRoutes(deps.newsletter));

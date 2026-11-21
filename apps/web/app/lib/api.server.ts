@@ -9,8 +9,7 @@ import type {
   PriceTicker,
   PublicAdSlot,
   SitemapData,
-  TagRef,
-} from "@coingist/types";
+  TagRef, StoryEngagement } from "@coingist/types";
 import { apiUrl } from "./config.server";
 
 /**
@@ -87,6 +86,19 @@ export const api = {
     } catch {
       return [];
     }
+  },
+  /** A story's likes and comments (never cached: they change constantly). */
+  async engagement(postId: string): Promise<StoryEngagement> {
+    try {
+      const res = await apiFetch(`/v1/public/posts/${encodeURIComponent(postId)}/engagement`, {
+        headers: { accept: "application/json" },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (res.ok) return (await res.json()) as StoryEngagement;
+    } catch {
+      // fall through: show an empty thread rather than break the page
+    }
+    return { likes: 0, comments: [] };
   },
   async recordAdClick(id: string): Promise<string | null> {
     try {

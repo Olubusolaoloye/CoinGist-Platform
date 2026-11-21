@@ -20,6 +20,7 @@ export default [
   route("account/logout", "routes/account.logout.ts"),
   route("account/state", "routes/account.state.ts"),
   route("account/actions", "routes/account.actions.ts"),
+  route("engagement", "routes/engagement.ts"),
   route("go/ad/:id", "routes/go.ad.ts"),
   route("editorial-policy", "routes/editorial-policy.tsx"),
   route("advertise", "routes/advertise.tsx"),

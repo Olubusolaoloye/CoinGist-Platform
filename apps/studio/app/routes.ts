@@ -27,6 +27,7 @@ export default [
     route("link-safety", "routes/app.link-safety.tsx"),
     route("trending", "routes/app.trending.tsx"),
     route("authors", "routes/app.authors.tsx"),
+    route("comments", "routes/app.comments.tsx"),
     route("authors/:id", "routes/app.authors.$id.tsx"),
   ]),
   route("*", "routes/not-found.tsx"),

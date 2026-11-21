@@ -124,3 +124,96 @@ test("mobile: the menu offers sign-in", async ({ page, isMobile }) => {
   await page.getByRole("link", { name: "Sign in to save stories" }).click();
   await expect(page.getByRole("heading", { level: 1 })).toHaveText("Sign in");
 });
+
+test.describe("comments and likes", () => {
+  test.beforeEach(({ isMobile }) => {
+    test.skip(isMobile, "Runs once, on desktop.");
+  });
+  const settle = (page: Page) => page.waitForResponse((r) => r.url().includes("/engagement") && r.request().method() === "POST");
+
+  test("signed out: readers see the thread and are asked to sign in to comment or like", async ({ page }) => {
+    await page.goto(ARTICLE);
+    const section = page.getByRole("region", { name: /^Comments/ });
+    await expect(section.getByRole("link", { name: "Sign in to comment" })).toHaveAttribute("href", `/account/login?next=${encodeURIComponent(`${ARTICLE}#comments`)}`);
+    await expect(page.getByRole("link", { name: /Like "Stablecoin transfers climb.*sign in first/ }).first()).toBeVisible();
+  });
+
+  test("a reader comments, replies, likes, edits and deletes; another reader reports", async ({ page, browser }) => {
+    await signIn(page, "Sample Reader", ARTICLE);
+    await page.goto(ARTICLE);
+    const section = page.getByRole("region", { name: /^Comments/ });
+    const text = `Clear explainer, thanks ${Date.now()}`;
+
+    // Like the story (from the header button) and see the count go up.
+    const like = page.getByRole("button", { name: /^Like "Stablecoin transfers climb/ }).first();
+    let done = settle(page);
+    await like.click();
+    expect((await done).ok()).toBe(true);
+    await expect(page.getByRole("button", { name: /^Unlike "Stablecoin transfers climb/ }).first()).toHaveAttribute("aria-pressed", "true");
+
+    // Comment.
+    await section.getByRole("textbox", { name: "Write a comment" }).fill(text);
+    done = settle(page);
+    await section.getByRole("button", { name: "Post comment" }).click();
+    expect((await done).ok()).toBe(true);
+    const mine = section.getByRole("article").filter({ hasText: text });
+    await expect(mine).toBeVisible();
+    await expect(mine).toContainText("(you)");
+
+    // Reply to it, then like the reply... (own comments can be liked too).
+    await mine.getByRole("button", { name: /^Reply to/ }).click();
+    await section.getByRole("textbox", { name: /^Reply to/ }).fill("Adding: fees matter most.");
+    done = settle(page);
+    await section.getByRole("button", { name: "Reply", exact: true }).click();
+    expect((await done).ok()).toBe(true);
+    // The reply box closes once it's posted (until then the parent comment also contains the text).
+    await expect(section.getByRole("textbox", { name: /^Reply to/ })).toHaveCount(0);
+    const reply = section.getByRole("article").filter({ hasText: "Adding: fees matter most." });
+    await expect(reply).toBeVisible();
+    done = settle(page);
+    await reply.getByRole("button", { name: /^Like .*comment/ }).click();
+    expect((await done).ok()).toBe(true);
+    await expect(reply.getByRole("button", { name: /^Unlike .*comment/ })).toContainText("1");
+
+    // Edit.
+    await mine.getByRole("button", { name: "Edit your comment" }).click();
+    await section.getByRole("textbox", { name: "Edit your comment" }).fill(`${text} (edited)`);
+    done = settle(page);
+    await section.getByRole("button", { name: "Save", exact: true }).click();
+    expect((await done).ok()).toBe(true);
+    await expect(section.getByRole("article").filter({ hasText: `${text} (edited)` })).toContainText("edited");
+
+    // Someone else can report it but not edit it.
+    const other = await browser.newPage();
+    await signIn(other, "Kwame Mensah", ARTICLE);
+    await other.goto(ARTICLE);
+    const theirView = other.getByRole("region", { name: /^Comments/ }).getByRole("article").filter({ hasText: `${text} (edited)` });
+    await expect(theirView.getByRole("button", { name: "Edit your comment" })).toHaveCount(0);
+    other.on("dialog", (d) => d.accept());
+    const reported = other.waitForResponse((r) => r.url().includes("/engagement") && r.request().method() === "POST");
+    await theirView.getByRole("button", { name: /^Report/ }).click();
+    expect((await reported).ok()).toBe(true);
+    await other.close();
+
+    // Delete: the reply keeps its place under a placeholder.
+    page.on("dialog", (d) => d.accept());
+    done = settle(page);
+    await section.getByRole("article").filter({ hasText: `${text} (edited)` }).getByRole("button", { name: "Delete your comment" }).click();
+    expect((await done).ok()).toBe(true);
+    await expect(section.getByText(`${text} (edited)`)).toHaveCount(0);
+    await expect(section.getByText("This comment was removed.").first()).toBeVisible();
+    await expect(reply).toBeVisible();
+  });
+
+  test("readers set the name shown on their comments from the account page", async ({ page }) => {
+    await signIn(page, "Sample Reader", "/account");
+    await page.goto("/account");
+    const region = page.getByRole("region", { name: "Your name on comments" });
+    await region.getByLabel("Display name").fill("Sample R.");
+    await region.getByRole("button", { name: "Save name" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Name saved." })).toBeVisible();
+    await region.getByLabel("Display name").fill("Sample Reader");
+    await region.getByRole("button", { name: "Save name" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Name saved." })).toBeVisible();
+  });
+});

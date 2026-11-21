@@ -1,6 +1,6 @@
 import { readForm } from "~/lib/form.server";
-import { data, Form, Link, redirect, useNavigation } from "react-router";
-import { FOLLOW_TYPE_LABEL, postPath } from "@coingist/types";
+import { data, Form, Link, redirect, useNavigation, useSearchParams } from "react-router";
+import { DisplayNameSchema, FOLLOW_TYPE_LABEL, postPath } from "@coingist/types";
 import type { Route } from "./+types/account";
 import { Pagination } from "~/components/Pagination";
 import { SponsoredBadge } from "~/components/SponsoredBadge";
@@ -32,6 +32,12 @@ export async function action({ request }: Route.ActionArgs) {
     if (intent === "unsave") await api.unsave(String(form.get("postId")));
     else if (intent === "unfollow") await api.unfollow({ type: form.get("type") as "author", slug: String(form.get("slug")) });
     else if (intent === "clear") await api.clear();
+    else if (intent === "name") {
+      const parsed = DisplayNameSchema.safeParse({ name: form.get("name") });
+      if (!parsed.success) throw redirect("/account?name=invalid", { headers: privateHeaders(auth.headers) });
+      await api.setName(parsed.data.name);
+      throw redirect("/account?name=saved", { headers: privateHeaders(auth.headers) });
+    }
     throw redirect(intent === "clear" ? "/account?cleared=1" : "/account", { headers: privateHeaders(auth.headers) });
   });
 }
@@ -48,6 +54,21 @@ export default function Account({ loaderData }: Route.ComponentProps) {
         <p className="mt-2 text-muted">Signed in as <strong className="text-ink">{name ?? email}</strong>{name ? ` (${email})` : ""}</p>
         <p className="mt-3"><Link to="/for-you" className="font-semibold text-link underline">Go to your feed</Link></p>
       </header>
+
+      <section aria-labelledby="name-h" className="mt-8">
+        <h2 id="name-h" className="font-display text-2xl font-extrabold tracking-tight">Your name on comments</h2>
+        <Form method="post" className="mt-3 flex flex-wrap items-end gap-2">
+          <input type="hidden" name="intent" value="name" />
+          <div className="min-w-56 flex-1">
+            <label htmlFor="display-name" className="sr-only">Display name</label>
+            <input id="display-name" name="name" required maxLength={60} defaultValue={name ?? ""} placeholder="e.g. Ada O."
+              className="w-full rounded-lg border border-line bg-surface px-3 py-2" />
+          </div>
+          <button disabled={busy} className="inline-flex min-h-10 items-center rounded-full border border-line px-4 text-sm font-semibold hover:border-ink">Save name</button>
+        </Form>
+        <NameNotice />
+        <p className="mt-2 text-sm text-muted">Shown next to your comments. Your email is never shown.</p>
+      </section>
 
       <section aria-labelledby="saved-h" className="mt-8">
         <h2 id="saved-h" className="font-display text-2xl font-extrabold tracking-tight">Saved stories <span className="text-base font-semibold text-muted">({saved.total})</span></h2>
@@ -110,4 +131,12 @@ export default function Account({ loaderData }: Route.ComponentProps) {
       </section>
     </main>
   );
+}
+
+function NameNotice() {
+  const [params] = useSearchParams();
+  const state = params.get("name");
+  if (state === "saved") return <p role="status" className="mt-2 text-sm text-ok">Name saved.</p>;
+  if (state === "invalid") return <p role="alert" className="mt-2 text-sm text-bad">Enter a name of up to 60 characters.</p>;
+  return null;
 }

@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
   AuthorProfileInputSchema,
+  MODERATION_FILTERS,
   CalendarQuerySchema,
   CommentInputSchema,
   CreatePostInputSchema,
@@ -148,6 +149,24 @@ export const studioRoutes = new Hono<AppEnv>()
       return c.body(null, 204);
     },
   )
+  // Reader comments: editors moderate (the database checks the role).
+  .get("/reader-comments", requirePermission("post:review"), zValidator("query", z.object({ filter: z.enum(MODERATION_FILTERS).default("reported") })), async (c) =>
+    c.json({ comments: await c.var.repos.engagement.moderation(c.var.claims!, c.req.valid("query").filter) }),
+  )
+  .patch(
+    "/reader-comments/:id",
+    requirePermission("post:review"),
+    zValidator("param", Id),
+    zValidator("json", z.object({ hidden: z.boolean() }).strict()),
+    async (c) => {
+      await c.var.repos.engagement.setHidden(c.var.claims!, c.req.valid("param").id, c.req.valid("json").hidden);
+      return c.body(null, 204);
+    },
+  )
+  .delete("/reader-comments/:id", requirePermission("post:review"), zValidator("param", Id), async (c) => {
+    await c.var.repos.engagement.deleteComment(c.var.claims!, c.req.valid("param").id);
+    return c.body(null, 204);
+  })
   .get("/review-queue", requirePermission("post:review"), async (c) =>
     c.json({ posts: await c.var.repos.studio.reviewQueue(c.var.claims!) }),
   )

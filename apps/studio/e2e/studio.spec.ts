@@ -305,6 +305,21 @@ test.describe("authors", () => {
   });
 });
 
+test.describe("reader comments", () => {
+  test("editors moderate reader comments; writers don't see the page", async ({ page }) => {
+    await signIn(page, EDITOR);
+    await page.getByRole("link", { name: "Comments" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Reader comments");
+    await page.getByRole("link", { name: "All recent" }).click();
+    await expect(page).toHaveURL(/filter=all/);
+    const r = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"]).analyze();
+    expect(r.violations.map((v) => v.id)).toEqual([]);
+    await signOut(page);
+    await signIn(page, WRITER);
+    await expect(page.getByRole("link", { name: "Comments" })).toHaveCount(0);
+  });
+});
+
 test.describe("sponsorship, ads and link safety", () => {
   test("a story linking to a blocked domain can't be approved, and the editor sees why", async ({ page }) => {
     const domain = `scam-${Date.now()}.example`;

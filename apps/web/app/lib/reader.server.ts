@@ -1,7 +1,7 @@
 import "./production.server";
 import { createServerClient, parseCookieHeader, serializeCookieHeader } from "@supabase/ssr";
 import { createCookieSessionStorage, data, redirect } from "react-router";
-import type { FeedStory, FollowInput, FollowTarget, Paginated, ReaderFeed, ReaderState, SavedStory, User } from "@coingist/types";
+import type { FeedStory, FollowInput, FollowTarget, Paginated, ReaderFeed, ReaderState, SavedStory, User, MyEngagement } from "@coingist/types";
 import { apiUrl, isDemo, siteConfig } from "./config.server";
 
 /**
@@ -196,6 +196,15 @@ export function readerApi(auth: ReaderAuth) {
     follow: (f: FollowInput) => call(auth, "PUT", "/follows", f).then((r) => json<{ follow: FollowTarget }>(r)),
     unfollow: (f: FollowInput) => call(auth, "DELETE", `/follows/${f.type}/${encodeURIComponent(f.slug)}`).then((r) => json<void>(r)),
     clear: () => call(auth, "DELETE", "/data").then((r) => json<void>(r)),
+    myEngagement: (postId: string) => call(auth, "GET", `/posts/${postId}/engagement`).then((r) => json<MyEngagement>(r)),
+    comment: (postId: string, body: string, parentId?: string) =>
+      call(auth, "POST", `/posts/${postId}/comments`, parentId ? { body, parentId } : { body }).then((r) => json<{ id: string }>(r)),
+    editComment: (id: string, body: string) => call(auth, "PATCH", `/comments/${id}`, { body }).then((r) => json<void>(r)),
+    deleteComment: (id: string) => call(auth, "DELETE", `/comments/${id}`).then((r) => json<void>(r)),
+    likePost: (postId: string, on: boolean) => call(auth, on ? "PUT" : "DELETE", `/posts/${postId}/like`).then((r) => json<{ likes: number }>(r)),
+    likeComment: (id: string, on: boolean) => call(auth, on ? "PUT" : "DELETE", `/comments/${id}/like`).then((r) => json<{ likes: number }>(r)),
+    report: (id: string, reason: string) => call(auth, "POST", `/comments/${id}/report`, { reason }).then((r) => json<void>(r)),
+    setName: (name: string) => call(auth, "PATCH", "/profile", { name }).then((r) => json<void>(r)),
   };
 }
 
