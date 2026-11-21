@@ -47,6 +47,7 @@ const ICONS = {
   team: "M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20c.8-3.5 3.2-5.5 6-5.5s5.2 2 6 5.5M16 5.5a3 3 0 0 1 0 5.5M18 14.8c1.5.7 2.6 2.4 3 5.2",
   payouts: "M3 7h18v10H3zM7 12h.01M17 12h.01M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z",
   images: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01",
+  author: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4.2-6 8-6s7 2 8 6",
 } as const;
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -64,7 +65,7 @@ const item = ({ isActive }: { isActive: boolean }) =>
 
 type Link = { to: string; label: string; icon: keyof typeof ICONS; end?: boolean };
 
-function navFor(role: Role): Array<{ title: string | null; links: Link[] }> {
+function navFor(role: Role, userId: string): Array<{ title: string | null; links: Link[] }> {
   const work: Link[] = [{ to: "/posts", label: "Stories", icon: "board", end: true }];
   if (hasAtLeast(role, "editor")) {
     work.unshift({ to: "/dashboard", label: "Dashboard", icon: "dashboard" });
@@ -74,7 +75,12 @@ function navFor(role: Role): Array<{ title: string | null; links: Link[] }> {
   if (can(role, "sponsored:manage")) business.push({ to: "/sponsored", label: "Sponsored", icon: "sponsored" });
   if (can(role, "ads:manage")) business.push({ to: "/ads", label: "Ads", icon: "ads" });
   if (can(role, "subscribers:manage")) business.push({ to: "/subscribers", label: "Subscribers", icon: "subscribers" });
-  const tools: Link[] = [{ to: "/link-safety", label: "Link safety", icon: "links" }];
+  const tools: Link[] = [
+    hasAtLeast(role, "editor")
+      ? { to: "/authors", label: "Authors", icon: "author" }
+      : { to: `/authors/${userId}`, label: "My author profile", icon: "author" },
+    { to: "/link-safety", label: "Link safety", icon: "links" },
+  ];
   if (role !== "admin" && can(role, "payments:view_own")) tools.push({ to: "/earnings", label: "My earnings", icon: "earnings" });
   const admin: Link[] = [];
   if (role === "admin") {
@@ -102,7 +108,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const { me } = loaderData;
   const role = me.user.role;
   const name = me.user.name ?? me.user.email;
-  const groups = navFor(role);
+  const groups = navFor(role, me.user.id);
   const [params] = useSearchParams();
   const location = useLocation();
   const menu = useRef<HTMLDetailsElement>(null);
@@ -136,7 +142,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         {initials(name)}
       </span>
       <span className="min-w-0 flex-1 leading-tight">
-        <span className="block truncate font-semibold text-white">{name}</span>
+        <NavLink to={`/authors/${me.user.id}`} className="block truncate font-semibold text-white hover:underline" title="Edit my author profile">{name}</NavLink>
         <span className="block text-sm text-night-muted capitalize">{role}</span>
       </span>
       <Form method="post" action="/logout">

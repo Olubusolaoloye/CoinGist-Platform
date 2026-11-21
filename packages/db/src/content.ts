@@ -285,8 +285,9 @@ export function createContentRepository(db: Database): ContentRepository {
           bio: string | null;
           socials: Record<string, string>;
           expertise: string[];
+          title: string | null;
         }>(
-          `select slug, name, avatar_url, bio, socials, expertise
+          `select slug, name, avatar_url, bio, socials, expertise, title
            from public.author_directory where slug = $1`,
           [slug],
         );
@@ -296,6 +297,7 @@ export function createContentRepository(db: Database): ContentRepository {
               slug: r.slug,
               name: r.name ?? r.slug,
               avatarUrl: r.avatar_url,
+              title: r.title,
               bio: r.bio,
               socials: r.socials,
               expertise: r.expertise,

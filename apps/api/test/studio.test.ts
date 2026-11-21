@@ -180,3 +180,32 @@ describe("story editor bundle", () => {
     expect((await call("GET", `/v1/studio/posts/${post.id}/editor`, users.reader)).status).toBe(403);
   });
 });
+
+describe("authors over HTTP", () => {
+  const body = { name: "Kemi Writer", title: "Markets reporter", bio: "", avatarUrl: "", socials: { x: "https://x.com/kemi" }, expertise: ["Bitcoin"] };
+
+  it("a writer saves their own profile and sees only themselves; editors see all staff", async () => {
+    const saved = await call("PUT", `/v1/studio/authors/${users.writer.id}`, users.writer, body);
+    expect(saved.status).toBe(200);
+    expect(await saved.json()).toEqual({ slug: "kemi-writer" });
+    const mine = (await (await call("GET", "/v1/studio/authors", users.writer)).json()) as { authors: Array<{ id: string }> };
+    expect(mine.authors.map((x) => x.id)).toEqual([users.writer.id]);
+    const all = (await (await call("GET", "/v1/studio/authors", users.editor)).json()) as { authors: Array<{ id: string; title: string | null }> };
+    expect(all.authors.length).toBeGreaterThan(1);
+    expect(all.authors.find((x) => x.id === users.writer.id)?.title).toBe("Markets reporter");
+  });
+
+  it("refuses edits to someone else from a writer, bad links, and readers", async () => {
+    expect((await call("PUT", `/v1/studio/authors/${users.editor.id}`, users.writer, body)).status).toBe(403);
+    expect((await call("PUT", `/v1/studio/authors/${users.writer.id}`, users.writer, { ...body, socials: { x: "javascript:alert(1)" } })).status).toBe(400);
+    expect((await call("GET", "/v1/studio/authors", users.reader)).status).toBe(403);
+  });
+
+  it("only editors change a story's byline", async () => {
+    const created = await call("POST", "/v1/studio/posts", users.writer, { type: "news", title: "Byline test story" });
+    const { post } = (await created.json()) as { post: { id: string } };
+    expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.writer, { authorId: users.editor.id })).status).toBe(403);
+    expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.editor, { authorId: users.editor.id })).status).toBe(204);
+    expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.editor, { authorId: users.reader.id })).status).toBe(409);
+  });
+});

@@ -6,6 +6,7 @@ import type {
   EditorialComment,
   Revision,
   RevisionSummary,
+  StaffAuthor,
   StudioEditorBundle,
   StudioPost,
   RichTextNode,
@@ -41,11 +42,13 @@ export async function loader({ request, params }: Route.LoaderArgs) {
   if (!UUID.test(params.id)) throw data({ error: "Not found" }, { status: 404 });
   const api = studioApi(auth);
   // One request (and one database transaction) instead of five.
-  const { post, comments, revisions, categories, tags, blocked } = await api.get<StudioEditorBundle>(
-    `/v1/studio/posts/${params.id}/editor`,
-  );
+  const [{ post, comments, revisions, categories, tags, blocked }, { authors }] = await Promise.all([
+    api.get<StudioEditorBundle>(`/v1/studio/posts/${params.id}/editor`),
+    // Editors get every staff member (to pick the byline); writers just themselves.
+    api.get<{ authors: StaffAuthor[] }>("/v1/studio/authors"),
+  ]);
   const taxonomy: { categories: CategoryRef[]; tags: TagRef[] } = { categories, tags };
-  return data({ post, comments, revisions, taxonomy, blocked, siteUrl: env.siteUrl }, { headers: auth.headers });
+  return data({ post, comments, revisions, taxonomy, blocked, authors, siteUrl: env.siteUrl }, { headers: auth.headers });
 }
 
 export async function action({ request, params }: Route.ActionArgs) {
@@ -78,6 +81,10 @@ export async function action({ request, params }: Route.ActionArgs) {
       });
       return r.ok ? done() : fail(r.code === "conflict" || r.code === "invalid" ? r.message : r.message, r.status);
     }
+    case "author": {
+      const r = await api.put(`${base}/author`, { authorId: String(form.get("authorId") ?? "") });
+      return r.ok ? done() : fail(r.message, r.status);
+    }
     case "comment": {
       const r = await api.post(`${base}/comments`, { body: String(form.get("body") ?? "") });
       return r.ok ? done() : fail(r.message, r.status);
@@ -108,7 +115,7 @@ export default function EditPostRoute({ loaderData }: Route.ComponentProps) {
   return <EditPost key={loaderData.post.id} {...loaderData} />;
 }
 
-function EditPost({ post, comments, revisions, taxonomy, blocked, siteUrl }: Route.ComponentProps["loaderData"]) {
+function EditPost({ post, comments, revisions, taxonomy, blocked, authors, siteUrl }: Route.ComponentProps["loaderData"]) {
   const me = useMe();
   const editable = canEditContent(me.user.role, me.user.id, post);
   const actions = workflowActions(me.user.role, me.user.id, post);
@@ -253,7 +260,7 @@ function EditPost({ post, comments, revisions, taxonomy, blocked, siteUrl }: Rou
         </div>
 
         <aside className="space-y-4" aria-label="Post settings">
-          <WorkflowPanel post={post} actions={actions} dirty={dirty} blocked={blocked} />
+          <WorkflowPanel post={post} actions={actions} dirty={dirty} blocked={blocked} authors={hasAtLeast(me.user.role, "editor") ? authors : null} meId={me.user.id} />
           <DetailsPanel draft={draft} set={set} editable={editable} categories={taxonomy.categories} tags={taxonomy.tags} canFeature={hasAtLeast(me.user.role, "editor")} />
           <AiPanel postId={post.id} draft={draft} set={set} editable={editable} published={post.status === "published"} siteUrl={siteUrl} onAppendToBody={appendToBody} onAiUsed={onAiUsed} />
           <SeoPanel draft={draft} set={set} editable={editable} siteUrl={siteUrl} />

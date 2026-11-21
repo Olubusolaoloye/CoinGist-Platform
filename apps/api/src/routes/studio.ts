@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
+  AuthorProfileInputSchema,
   CalendarQuerySchema,
   CommentInputSchema,
   CreatePostInputSchema,
@@ -129,6 +130,24 @@ export const studioRoutes = new Hono<AppEnv>()
     const revision = await c.var.repos.studio.getRevision(c.var.claims!, c.req.valid("param").id);
     return revision ? c.json({ revision }) : c.json(NOT_FOUND, 404);
   })
+  // Authors: everyone edits their own profile; editors edit anyone's and choose story bylines.
+  // The database enforces who may do what.
+  .get("/authors", requirePermission("post:create"), async (c) =>
+    c.json({ authors: await c.var.repos.authors.list(c.var.claims!) }),
+  )
+  .put("/authors/:id", requirePermission("post:create"), zValidator("param", Id), zValidator("json", AuthorProfileInputSchema), async (c) =>
+    c.json({ slug: await c.var.repos.authors.saveProfile(c.var.claims!, c.req.valid("param").id, c.req.valid("json")) }),
+  )
+  .put(
+    "/posts/:id/author",
+    requirePermission("post:review"),
+    zValidator("param", Id),
+    zValidator("json", z.object({ authorId: z.string().uuid() }).strict()),
+    async (c) => {
+      await c.var.repos.authors.setPostAuthor(c.var.claims!, c.req.valid("param").id, c.req.valid("json").authorId);
+      return c.body(null, 204);
+    },
+  )
   .get("/review-queue", requirePermission("post:review"), async (c) =>
     c.json({ posts: await c.var.repos.studio.reviewQueue(c.var.claims!) }),
   )

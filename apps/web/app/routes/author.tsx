@@ -94,6 +94,7 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
             <h1 className="font-display text-4xl font-extrabold tracking-tight">{author.name}</h1>
             <FollowButton type="author" slug={author.slug} name={author.name} />
           </div>
+          {author.title ? <p className="mt-1 font-semibold text-muted">{author.title}</p> : null}
           {author.bio ? <p className="mt-2 max-w-[60ch] text-lg text-muted">{author.bio}</p> : null}
           {author.expertise.length > 0 ? (
             <div className="mt-3">

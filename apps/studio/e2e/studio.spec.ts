@@ -260,6 +260,51 @@ test.describe("admin", () => {
   });
 });
 
+test.describe("authors", () => {
+  test("a writer edits their own author profile, and it shows on the public author page", async ({ page, request }) => {
+    await signIn(page, WRITER);
+    await page.getByRole("link", { name: "My author profile" }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("My author profile");
+    await expect(page.getByLabel("Display name")).toHaveValue(WRITER); // keep the name other tests rely on
+    const title = `Markets reporter ${Date.now()}`;
+    await page.getByLabel("Job title (optional)").fill(title);
+    await page.getByLabel("Topics covered (optional)").fill("Bitcoin, Regulation");
+    await page.getByRole("button", { name: "Save profile" }).click();
+    await expect(page.getByRole("status").filter({ hasText: "Saved." })).toBeVisible();
+    // Writers only see their own profile.
+    await page.goto("/authors");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("My author profile");
+    // The public site shows the job title (once its cache expires; the API is read directly here).
+    const html = await (await request.get(`${WEB}/author/amara-okafor?fresh=${Date.now()}`)).text();
+    expect(html).toContain(title);
+  });
+
+  test("an editor changes a story's byline from the Status panel", async ({ page }) => {
+    await signIn(page, WRITER);
+    await createPost(page, `Byline story ${Date.now()}`);
+    const url = page.url();
+    // Writers see their name but can't change it.
+    await expect(page.getByRole("combobox", { name: "Author (byline)" })).toHaveCount(0);
+    await signOut(page);
+
+    await signIn(page, EDITOR);
+    await page.goto(url);
+    const byline = page.getByRole("combobox", { name: "Author (byline)" });
+    await expect(byline).toHaveValue(/.+/);
+    const saveAuthor = page.getByRole("button", { name: "Save author" });
+    // Retry until the page has hydrated (a choice made before that is reset).
+    await expect(async () => {
+      await byline.selectOption({ label: EDITOR });
+      await expect(saveAuthor).toBeEnabled({ timeout: 1000 });
+    }).toPass();
+    await saveAuthor.click();
+    await expect(page.getByText(`Credited to ${EDITOR}.`)).toBeVisible();
+
+    await page.getByRole("link", { name: "Authors" }).click();
+    await expect(page.getByRole("link", { name: `Edit ${WRITER}'s profile` })).toBeVisible();
+  });
+});
+
 test.describe("sponsorship, ads and link safety", () => {
   test("a story linking to a blocked domain can't be approved, and the editor sees why", async ({ page }) => {
     const domain = `scam-${Date.now()}.example`;

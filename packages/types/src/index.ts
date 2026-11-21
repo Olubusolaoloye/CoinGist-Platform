@@ -12,3 +12,4 @@ export * from "./insights.js";
 export * from "./ai.js";
 export * from "./reader.js";
 export * from "./invites.js";
+export * from "./authors.js";

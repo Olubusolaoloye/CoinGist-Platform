@@ -33,6 +33,8 @@ export interface AuthorRef {
   avatarUrl: string | null;
 }
 export interface AuthorProfile extends AuthorRef {
+  /** Job title, e.g. "Markets reporter". */
+  title: string | null;
   bio: string | null;
   socials: Record<string, string>;
   expertise: string[];
