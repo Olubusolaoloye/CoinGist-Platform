@@ -36,6 +36,10 @@ export default function Privacy({ loaderData }: Route.ComponentProps) {
         collect personal data; we see totals such as page views and which countries readers come from. We don&rsquo;t use
         third-party advertising trackers.
       </p>
+      <p>
+        The &ldquo;Stocks to watch&rdquo; panel on the home page is provided by TradingView and loads from their servers, so
+        TradingView receives your IP address and browser details when it appears, and handles them under its own privacy policy.
+      </p>
       <h2>Newsletters</h2>
       <p>
         When you sign up we keep your email address, the newsletters you chose, where on the site you signed up, and when you
@@ -46,7 +50,15 @@ export default function Privacy({ loaderData }: Route.ComponentProps) {
       <p>
         If you create an account we keep your email address (and your name if you sign in with Google), the stories you save and
         the writers and topics you follow. They&rsquo;re private to you and used only to run your account and your For you
-        feed. Sign-in is handled by Supabase. You can clear your saved stories and follows at any time from your account page.
+        feed. Sign-in is handled by Supabase.
+      </p>
+      <p>
+        Comments are public: anyone can read them, with the name you choose to show (never your email). Likes are counted but
+        not shown against your name. You can edit or delete your own comments at any time.
+      </p>
+      <p>
+        You can deactivate your account from your account page. That signs you out and hides your comments; nothing is deleted,
+        and signing in again brings it all back. To have your account and data deleted for good, contact us (see Your rights).
       </p>
       <h2>Cookies</h2>
       <ul>

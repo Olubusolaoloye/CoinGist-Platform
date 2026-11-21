@@ -562,6 +562,19 @@ test.describe("homepage motion", () => {
   });
 });
 
+test.describe("stocks panel", () => {
+  test("reserves its space, credits TradingView, and the policy allows only TradingView's frame", async ({ page }) => {
+    const res = await page.goto("/");
+    const panel = page.getByRole("region", { name: "Stocks to watch" });
+    await expect(panel).toBeVisible();
+    // Space is held before the widget arrives, so nothing below it moves.
+    expect((await panel.locator(".stocks-frame").boundingBox())!.height).toBeGreaterThanOrEqual(299);
+    await expect(panel.getByRole("link", { name: /Stock prices by TradingView/ })).toHaveAttribute("href", "https://www.tradingview.com/");
+    const csp = res!.headers()["content-security-policy"];
+    if (csp) expect(csp).toContain("frame-src https://www.tradingview-widget.com https://s.tradingview.com");
+  });
+});
+
 test.describe("launch pages and price ticker", () => {
   test("a form post that isn't a form gets a 400, not a server error", async ({ request }) => {
     for (const path of ["/newsletter", "/resources/theme"]) {
