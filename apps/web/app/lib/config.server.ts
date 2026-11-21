@@ -17,6 +17,24 @@ export function isDemo(): boolean {
   return process.env["DEMO_MODE"] === "true";
 }
 
+/**
+ * Whether search engines may index this deploy. Off for demo deploys, and off while the site
+ * runs on a temporary *.netlify.app address, so Google doesn't list that address and then
+ * split rankings with the real domain. Turns on by itself once SITE_URL is the real domain.
+ * SITE_INDEXING=on|off overrides it.
+ */
+export function searchIndexing(): boolean {
+  if (isDemo()) return false;
+  const override = process.env["SITE_INDEXING"];
+  if (override === "on") return true;
+  if (override === "off") return false;
+  try {
+    return !new URL(siteConfig().url).hostname.endsWith(".netlify.app");
+  } catch {
+    return false;
+  }
+}
+
 /** Plausible analytics (privacy-friendly, no cookies). Off unless PLAUSIBLE_DOMAIN is set. */
 export function analyticsConfig(): { domain: string; src: string; origin: string } | null {
   const domain = process.env["PLAUSIBLE_DOMAIN"];

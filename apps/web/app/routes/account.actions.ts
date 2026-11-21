@@ -1,3 +1,4 @@
+import { readForm } from "~/lib/form.server";
 import { data, redirect } from "react-router";
 import { FollowInputSchema } from "@coingist/types";
 import type { Route } from "./+types/account.actions";
@@ -12,7 +13,7 @@ const UUID = /^[0-9a-f-]{36}$/i;
  */
 export async function action({ request }: Route.ActionArgs) {
   assertSameOrigin(request);
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = String(form.get("intent") ?? "");
   const back = safeNext(String(form.get("redirectTo") ?? ""));
   // The page's buttons send js=1 (they only exist after hydration); plain forms get a redirect.

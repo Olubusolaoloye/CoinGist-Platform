@@ -1,3 +1,4 @@
+import { readForm } from "~/lib/form.server";
 import { data, Form, Link, redirect, useNavigation } from "react-router";
 import { FOLLOW_TYPE_LABEL, postPath } from "@coingist/types";
 import type { Route } from "./+types/account";
@@ -25,7 +26,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 /** Plain-form actions on this page (work without JavaScript). */
 export async function action({ request }: Route.ActionArgs) {
   assertSameOrigin(request);
-  const form = await request.formData();
+  const form = await readForm(request);
   const intent = form.get("intent");
   return withReader(request, async (api, auth) => {
     if (intent === "unsave") await api.unsave(String(form.get("postId")));

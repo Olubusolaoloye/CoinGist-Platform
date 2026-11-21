@@ -507,6 +507,13 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
 });
 
 test.describe("launch pages and price ticker", () => {
+  test("a form post that isn't a form gets a 400, not a server error", async ({ request }) => {
+    for (const path of ["/newsletter", "/resources/theme"]) {
+      const res = await request.post(path, { headers: { "content-type": "text/plain" }, data: "junk" });
+      expect(res.status(), path).toBe(400);
+    }
+  });
+
   test("advertise, privacy and terms are linked from the footer, indexable and in the sitemap", async ({ page, request }) => {
     for (const [name, path, heading] of [
       ["Advertise", "/advertise", "Advertise with CoinGist"],

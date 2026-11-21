@@ -1,3 +1,4 @@
+import { readForm } from "~/lib/form.server";
 import { data, Form, redirect, useNavigation } from "react-router";
 import type { Route } from "./+types/account.login";
 import { apiUrl, siteConfig } from "~/lib/config.server";
@@ -33,7 +34,7 @@ export async function loader({ request }: Route.LoaderArgs) {
 
 export async function action({ request }: Route.ActionArgs) {
   assertSameOrigin(request);
-  const form = await request.formData();
+  const form = await readForm(request);
   const next = safeNext(String(form.get("next") ?? ""));
   const mode = readerAuthMode();
   if (!allow(`reader-login:${clientIp(request)}`, Number(process.env["READER_SIGNINS_PER_10_MIN"] ?? 10), 10 * 60_000)) {

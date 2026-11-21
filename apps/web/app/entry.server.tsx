@@ -5,7 +5,7 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
-import { analyticsConfig } from "./lib/config.server";
+import { analyticsConfig, searchIndexing } from "./lib/config.server";
 import { assertReaderAuthConfig, readerAuthMode } from "./lib/reader.server";
 
 // Fail fast on a misconfigured deployment (e.g. dev reader sign-in in production).
@@ -60,7 +60,7 @@ function applyDocumentHeaders(headers: Headers, status: number, nonce: string, r
   headers.set("X-Frame-Options", "DENY");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
   // Preview deploys carry fake stories: keep them out of search engines.
-  if (process.env["DEMO_MODE"] === "true") headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (!searchIndexing()) headers.set("X-Robots-Tag", "noindex, nofollow");
 }
 
 export default function handleRequest(
