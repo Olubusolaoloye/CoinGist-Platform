@@ -530,6 +530,22 @@ test.describe("dashboards", () => {
     await expect(page.getByRole("row").filter({ hasText: note })).toContainText("Paid");
   });
 
+  test("admin invites a writer by email, sees it waiting, and can cancel it", async ({ page }) => {
+    await signIn(page, ADMIN);
+    await page.goto("/admin/team");
+    const email = `invitee-${Date.now()}@example.com`;
+    const form = page.getByRole("region", { name: "Invite someone" });
+    await form.getByLabel("Email address").fill(email);
+    await expect(form.getByLabel("Role")).toHaveValue("writer");
+    await form.getByRole("button", { name: "Send invite" }).click();
+    await expect(page.getByRole("status")).toContainText(`Invite saved for ${email}`);
+    const row = form.getByRole("listitem").filter({ hasText: email });
+    await expect(row).toContainText("writer");
+    await row.getByRole("button", { name: `Cancel invite to ${email}` }).click();
+    await expect(page.getByRole("status")).toHaveText(`Invite for ${email} cancelled.`);
+    await expect(form.getByRole("listitem").filter({ hasText: email })).toHaveCount(0);
+  });
+
   test("admin changes a role and suspends an account, and can't lock themselves out", async ({ page }) => {
     page.on("dialog", (d) => d.accept());
     await signIn(page, ADMIN);

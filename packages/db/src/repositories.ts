@@ -1,4 +1,4 @@
-import type { AuditLog, Role, User, UserStatus } from "@coingist/types";
+import type { AuditLog, Role, StaffInvite, StaffInviteInput, StaffInviteOutcome, User, UserStatus } from "@coingist/types";
 import { createAiRepository, type AiRepository } from "./ai.js";
 import { createCommerceRepository, type CommerceRepository } from "./commerce.js";
 import { createContentRepository, type ContentRepository } from "./content.js";
@@ -7,7 +7,7 @@ import type { Database, SessionClaims } from "./database.js";
 import { createNewsletterRepository, type NewsletterRepository } from "./newsletter.js";
 import { createReaderRepository, type ReaderRepository } from "./readers.js";
 import { createStudioRepository, type StudioRepository } from "./studio.js";
-import { mapDbError } from "./errors.js";
+import { DomainError, mapDbError } from "./errors.js";
 
 /**
  * Storage-agnostic data access used by the API. The API depends only on this interface;
@@ -29,6 +29,11 @@ export interface Repositories {
     list(actor: SessionClaims, opts: { limit: number; offset: number }): Promise<User[]>;
     setRole(actor: SessionClaims, userId: string, role: Role): Promise<User>;
     setStatus(actor: SessionClaims, userId: string, status: UserStatus): Promise<User>;
+    /** Admins only. An existing account gets the role now; otherwise it waits for their sign-up. */
+    invite(actor: SessionClaims, input: StaffInviteInput): Promise<StaffInviteOutcome>;
+    /** Open, unexpired invites, newest first. */
+    listInvites(actor: SessionClaims): Promise<StaffInvite[]>;
+    cancelInvite(actor: SessionClaims, id: string): Promise<void>;
   };
   audit: {
     list(
@@ -138,6 +143,43 @@ export function createPgRepositories(db: Database): Repositories {
               [userId, status],
             );
             return toUser(rows[0]!);
+          }),
+        ),
+
+      invite: (actor, { email, role }) =>
+        run(
+          db.asUser(actor, async (q) => {
+            const rows = await q.query<{ outcome: StaffInviteOutcome }>(
+              "select public.invite_staff($1, $2::public.user_role) as outcome",
+              [email, role],
+            );
+            return rows[0]!.outcome;
+          }),
+        ),
+
+      listInvites: (actor) =>
+        run(
+          db.asUser(actor, async (q) => {
+            const rows = await q.query<{ id: string; email: string; role: StaffInvite["role"]; invited_by: string | null; created_at: Date; expires_at: Date }>(
+              `select id, email, role, invited_by, created_at, expires_at from public.staff_invites
+               where accepted_at is null and expires_at > now() order by created_at desc`,
+            );
+            return rows.map((r) => ({
+              id: r.id,
+              email: r.email,
+              role: r.role,
+              invitedBy: r.invited_by,
+              createdAt: new Date(r.created_at).toISOString(),
+              expiresAt: new Date(r.expires_at).toISOString(),
+            }));
+          }),
+        ),
+
+      cancelInvite: (actor, id) =>
+        run(
+          db.asUser(actor, async (q) => {
+            const rows = await q.query("delete from public.staff_invites where id = $1 and accepted_at is null returning id", [id]);
+            if (!rows.length) throw new DomainError("not_found", "Invite not found");
           }),
         ),
     },

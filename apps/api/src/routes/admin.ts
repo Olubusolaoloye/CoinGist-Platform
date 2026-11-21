@@ -6,6 +6,7 @@ import {
   PaymentListQuerySchema,
   PaymentUpdateSchema,
   RoleSchema,
+  StaffInviteInputSchema,
   UpdateCategoryInputSchema,
   UserStatusSchema,
 } from "@coingist/types";
@@ -96,6 +97,19 @@ export const adminRoutes = new Hono<AppEnv>()
       return c.json({ user });
     },
   )
+  // Invites: admins invite an email address to a Studio role (Studio sends the sign-in email).
+  .get("/invites", requirePermission("user:manage_roles"), async (c) =>
+    c.json({ invites: await c.var.repos.users.listInvites(c.var.claims!) }),
+  )
+  .post("/invites", requirePermission("user:manage_roles"), zValidator("json", StaffInviteInputSchema), async (c) => {
+    const input = c.req.valid("json");
+    const outcome = await c.var.repos.users.invite(c.var.claims!, input);
+    return c.json({ outcome, email: input.email, role: input.role }, outcome === "invited" ? 201 : 200);
+  })
+  .delete("/invites/:id", requirePermission("user:manage_roles"), zValidator("param", IdParam), async (c) => {
+    await c.var.repos.users.cancelInvite(c.var.claims!, c.req.valid("param").id);
+    return c.body(null, 204);
+  })
   .get("/audit-logs", requirePermission("audit:view"), zValidator("query", AuditQuery), async (c) => {
     const logs = await c.var.repos.audit.list(c.var.claims!, c.req.valid("query"));
     return c.json({ logs });
