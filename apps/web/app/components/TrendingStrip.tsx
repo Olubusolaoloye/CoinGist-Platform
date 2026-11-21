@@ -21,10 +21,11 @@ export function TrendingStrip({ posts }: { posts: PostSummary[] }) {
       el.scrollTo({ left: 0, behavior: "smooth" });
       return;
     }
-    // The first headline starting to the right of the current view's left edge.
+    // The first headline starting to the right of the current view's left edge. (The list is
+    // position: relative, so each headline's offsetLeft is measured from the list's own start.)
     const items = Array.from(el.children) as HTMLElement[];
-    const target = items.find((li) => li.offsetLeft - el.offsetLeft > el.scrollLeft + 4);
-    el.scrollTo({ left: target ? target.offsetLeft - el.offsetLeft : el.scrollWidth, behavior: "smooth" });
+    const target = items.find((li) => li.offsetLeft > el.scrollLeft + 4);
+    el.scrollTo({ left: target ? target.offsetLeft : el.scrollWidth, behavior: "smooth" });
   };
   const auto = useAutoAdvance(next, 4000, { enabled: posts.length > 1 });
 

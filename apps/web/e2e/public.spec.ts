@@ -530,6 +530,15 @@ test.describe("homepage motion", () => {
     const before = await justIn.evaluate((el) => el.scrollLeft);
     await page.clock.runFor(4_500);
     await expect.poll(() => justIn.evaluate((el) => el.scrollLeft)).toBeGreaterThan(before);
+    // ...and lines up on the start of a headline, never mid-word (smooth scrolling runs in real time).
+    await expect
+      .poll(() =>
+        justIn.evaluate((el) =>
+          Array.from(el.children).some((li) => Math.abs((li as HTMLElement).offsetLeft - el.scrollLeft) <= 2) ||
+          el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
+        ),
+      )
+      .toBe(true);
 
     // The ticker runs as a marquee, with no source line, and pauses on request.
     const ticker = page.getByRole("region", { name: "Crypto prices" });
