@@ -506,6 +506,53 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   }
 });
 
+test.describe("homepage motion", () => {
+  test("spotlight, Just in and the price ticker move on their own, and can be paused", async ({ page }) => {
+    await page.clock.install();
+    await page.goto("/");
+    await page.waitForLoadState("networkidle"); // hydrated: the timers below are the page's own
+    const spot = page.getByRole("region", { name: "Spotlight" });
+    const slides = spot.locator('[aria-roledescription="slide"]');
+    await expect(slides.first()).toHaveAttribute("data-active", "true");
+    await expect(spot.getByRole("button", { name: "Pause spotlight stories" })).toBeEnabled();
+    await page.clock.runFor(7_500);
+    await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
+
+    // Paused: it stays put.
+    await spot.getByRole("button", { name: "Pause spotlight stories" }).click();
+    await page.mouse.move(0, 0); // stop hovering, so only the pause holds it
+    await page.clock.runFor(20_000);
+    await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
+    await expect(spot.getByRole("button", { name: "Play spotlight stories" })).toHaveAttribute("aria-pressed", "true");
+
+    // Just in scrolls along by itself.
+    const justIn = page.getByRole("region", { name: "Just in" }).getByRole("list");
+    const before = await justIn.evaluate((el) => el.scrollLeft);
+    await page.clock.runFor(4_500);
+    await expect.poll(() => justIn.evaluate((el) => el.scrollLeft)).toBeGreaterThan(before);
+
+    // The ticker runs as a marquee, with no source line, and pauses on request.
+    const ticker = page.getByRole("region", { name: "Crypto prices" });
+    await expect(ticker).not.toContainText("CoinGecko");
+    await expect(ticker).not.toContainText("may be delayed");
+    const track = ticker.locator(".marquee-track");
+    expect(await track.evaluate((el) => getComputedStyle(el).animationName)).toBe("marquee");
+    await ticker.getByRole("button", { name: "Pause prices" }).click();
+    expect(await track.evaluate((el) => getComputedStyle(el).animationPlayState)).toBe("paused");
+  });
+
+  test("nothing moves for readers who prefer reduced motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.clock.install();
+    await page.goto("/");
+    const slides = page.getByRole("region", { name: "Spotlight" }).locator('[aria-roledescription="slide"]');
+    await page.clock.runFor(20_000);
+    await expect(slides.first()).toHaveAttribute("data-active", "true");
+    expect(await page.locator(".marquee-track").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
+    await expect(page.getByRole("button", { name: "Pause spotlight stories" })).toHaveCount(0);
+  });
+});
+
 test.describe("launch pages and price ticker", () => {
   test("a form post that isn't a form gets a 400, not a server error", async ({ request }) => {
     for (const path of ["/newsletter", "/resources/theme"]) {

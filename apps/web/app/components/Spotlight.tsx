@@ -4,6 +4,8 @@ import { postPath, type PostSummary } from "@coingist/types";
 import { formatDate, SECTION_LABEL } from "~/lib/format";
 import { Picture } from "./Picture";
 import { Avatar } from "./Avatar";
+import { PauseButton } from "./PauseButton";
+import { useAutoAdvance } from "~/lib/motion";
 
 function label(p: PostSummary) {
   return p.isSponsored ? "Sponsored" : (p.category?.name ?? SECTION_LABEL[p.type]);
@@ -29,8 +31,9 @@ function Photo({ post, priority, sizes, maxWidth }: { post: PostSummary; priorit
 
 /**
  * The home page's lead: one big photo story with a frosted caption, and the next stories peeking
- * in from the right. Readers change stories with the peeks or the coin rings; nothing moves on
- * its own.
+ * in from the right. It moves to the next story every 7 seconds; it holds while the reader points
+ * at it or tabs into it, has a pause button, and doesn't move for people who prefer reduced motion.
+ * Readers can also pick a story with the peeks or the coin rings.
  */
 export function Spotlight({ posts }: { posts: PostSummary[] }) {
   const [active, setActive] = useState(0);
@@ -50,14 +53,20 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
     window.addEventListener("load", preload, { once: true });
     return () => window.removeEventListener("load", preload);
   }, [active, posts.length]);
+  const auto = useAutoAdvance(() => setActive((a) => (a + 1) % Math.max(posts.length, 1)), 7000, {
+    enabled: posts.length > 1,
+    restartKey: active,
+  });
   if (posts.length === 0) return null;
   const peeks = [1, 2].map((o) => (active + o) % posts.length).filter((i, n, all) => i !== active && all.indexOf(i) === n);
 
   return (
-    <section aria-roledescription="carousel" aria-label="Spotlight" className="pt-6 sm:pt-8">
-      <div className="flex items-end justify-between gap-4">
+    <section aria-roledescription="carousel" aria-label="Spotlight" className="pt-6 sm:pt-8" {...auto.bind}>
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
         <h2 className="font-display text-3xl font-extrabold tracking-tight sm:text-4xl">Spotlight</h2>
         {posts.length > 1 ? (
+          <div className="flex items-center gap-2">
+          {!auto.reduce ? <PauseButton paused={auto.paused} onClick={auto.toggle} what="spotlight stories" /> : null}
           <div className="flex items-center gap-2" role="group" aria-label="Choose a story">
             {posts.map((p, i) => (
               <button
@@ -77,10 +86,11 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
               </button>
             ))}
           </div>
+          </div>
         ) : null}
       </div>
 
-      <div className="mt-4 flex gap-3 sm:gap-4">
+      <div className="mt-4 flex gap-3 sm:gap-4" aria-live={auto.paused || auto.reduce ? "polite" : "off"}>
         <div className="relative isolate min-h-[26rem] min-w-0 flex-1 overflow-hidden rounded-[1.75rem] bg-night sm:min-h-[30rem] lg:min-h-[34rem]">
           {posts.map((p, i) => (
             <article
