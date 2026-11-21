@@ -25,3 +25,11 @@ any of them in Studio: story hero images in the story editor, topic covers in Ad
 | Topic: Regulation | https://images.unsplash.com/photo-1589829545856-d10d557cf95f |
 | Topic: Africa | https://images.unsplash.com/photo-1618828665011-0abd973f7bb8 |
 | Topic: Security | https://images.unsplash.com/photo-1550751827-4bd374c3f58b |
+
+## Coin logos
+
+`apps/web/public/coins/*.svg` (BTC, ETH, USDT, USDC, SOL, BNB) come from
+[web3icons](https://github.com/0xa3k5/web3icons) (`@web3icons/core`, "branded" token icons) under the
+MIT licence. The full licence text ships beside them in `apps/web/public/coins/LICENSE.txt`.
+
+The logos are the coins' own trademarks, used only to identify each coin next to its price.

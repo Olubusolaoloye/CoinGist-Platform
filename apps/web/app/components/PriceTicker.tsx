@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PriceTicker as Ticker } from "@coingist/types";
 import { PauseButton } from "./PauseButton";
+import { coinLogo } from "~/lib/coin-logos";
 
 const usd = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n >= 100 ? 0 : n >= 1 ? 2 : 4 }).format(n);
@@ -11,7 +12,8 @@ function Quotes({ ticker, copy }: { ticker: Ticker; copy?: boolean }) {
       {ticker.quotes.map((q) => {
         const up = (q.change24h ?? 0) >= 0;
         return (
-          <li key={q.id} className="flex items-baseline gap-1.5 whitespace-nowrap">
+          <li key={q.id} className="flex items-center gap-1.5 whitespace-nowrap">
+            {coinLogo(q.symbol) ? <img src={coinLogo(q.symbol)!} alt="" width={16} height={16} className="size-4 shrink-0" decoding="async" /> : null}
             <abbr title={q.name} className="font-bold no-underline">{q.symbol}</abbr>
             <span className="tabular-nums">{usd(q.usd)}</span>
             {q.change24h !== null ? (

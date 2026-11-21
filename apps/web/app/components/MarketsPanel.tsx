@@ -1,4 +1,5 @@
 import type { PriceTicker } from "@coingist/types";
+import { coinLogo } from "~/lib/coin-logos";
 
 const usd = (n: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: n >= 100 ? 0 : n >= 1 ? 2 : 4 }).format(n);
@@ -17,9 +18,15 @@ export function MarketsPanel({ ticker }: { ticker: PriceTicker | null }) {
           const up = (q.change24h ?? 0) >= 0;
           return (
             <li key={q.id} className="flex items-center gap-3 rounded-2xl bg-surface/70 px-3 py-2.5">
-              <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-night text-[0.7rem] font-bold text-gist">
-                {q.symbol.slice(0, 4)}
-              </span>
+              {coinLogo(q.symbol) ? (
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-white ring-1 ring-line">
+                  <img src={coinLogo(q.symbol)!} alt="" width={28} height={28} className="size-7" loading="lazy" decoding="async" />
+                </span>
+              ) : (
+                <span aria-hidden="true" className="grid size-9 shrink-0 place-items-center rounded-full bg-night text-[0.7rem] font-bold text-gist">
+                  {q.symbol.slice(0, 4)}
+                </span>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="truncate font-semibold">{q.name}</p>
               </div>
