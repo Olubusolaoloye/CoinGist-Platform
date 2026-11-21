@@ -346,8 +346,3 @@ body {
   header a[href="/"] { transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
   header a[href="/"]:hover { transform: scale(1.04); }
 }
-
-/* Stocks widget: an embedded frame is only see-through when its colour scheme matches the
-   page's. TradingView's page is light-scheme, so give the frame a light scheme in dark mode
-   too (its dark colours come from the widget's own theme setting). */
-.stocks-frame { color-scheme: light; }

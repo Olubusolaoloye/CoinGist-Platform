@@ -6,7 +6,6 @@ import { AdSlot } from "~/components/AdSlot";
 import { Carousel } from "~/components/Carousel";
 import { EditorsPicks } from "~/components/EditorsPicks";
 import { LatestList } from "~/components/LatestList";
-import { StocksPanel } from "~/components/StocksPanel";
 import { MarketsPanel } from "~/components/MarketsPanel";
 import { NewsletterBanner } from "~/components/NewsletterBanner";
 import { Spotlight } from "~/components/Spotlight";
@@ -102,7 +101,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         <LatestList posts={latest.filter((p) => !spotlight.some((s) => s.id === p.id)).slice(0, 7)} />
         <aside className="space-y-5 lg:sticky lg:top-24 lg:self-start" aria-label="Markets and highlights">
           <MarketsPanel ticker={root?.prices ?? null} />
-          <StocksPanel />
           {leadGist.length ? <GistCard lead={lead} bullets={leadGist} /> : null}
           <EditorsPicks posts={picks} />
         </aside>

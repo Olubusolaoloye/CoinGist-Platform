@@ -26,15 +26,13 @@ function contentSecurityPolicy(nonce: string, https: boolean): string {
   const analytics = analyticsConfig()?.origin ?? "";
   return [
     "default-src 'self'",
-    // TradingView: the home page's stock prices widget (script, and the frame it opens).
-    `script-src 'self' 'nonce-${nonce}' https://s3.tradingview.com ${analytics}`.trim(),
-    // The TradingView widget adds one stylesheet for its credit line; allowed by its hash only.
-    `style-src 'self' 'nonce-${nonce}' 'sha256-JyHF32z4Ou/Ujas95CX3WgBqlTt7Dxzo/fQG5/5oBo8='`,
+    `script-src 'self' 'nonce-${nonce}' ${analytics}`.trim(),
+    `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' data: https:",
     "font-src 'self'",
     `connect-src 'self' ${analytics}`.trim(),
     "media-src 'self' https:",
-    "frame-src https://www.tradingview-widget.com https://s.tradingview.com",
+    "frame-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "object-src 'none'",

@@ -36,10 +36,6 @@ export default function Privacy({ loaderData }: Route.ComponentProps) {
         collect personal data; we see totals such as page views and which countries readers come from. We don&rsquo;t use
         third-party advertising trackers.
       </p>
-      <p>
-        The &ldquo;Stocks to watch&rdquo; panel on the home page is provided by TradingView and loads from their servers, so
-        TradingView receives your IP address and browser details when it appears, and handles them under its own privacy policy.
-      </p>
       <h2>Newsletters</h2>
       <p>
         When you sign up we keep your email address, the newsletters you chose, where on the site you signed up, and when you
