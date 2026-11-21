@@ -280,51 +280,63 @@ body {
 .article-body .embed a:hover { border-color: var(--ink); }
 
 /* ─── Hover animations ───────────────────────────────────────────────────────
-   Only for real hover (mouse/trackpad), never on touch screens (no sticky hovers), and never
-   for people who ask for reduced motion. Only transform, opacity and colour change: the GPU
-   handles them, so nothing re-lays out the page and scrolling stays smooth. */
-:root { --hover-shadow: 0 1px 0 color-mix(in oklab, white 55%, transparent) inset, 0 26px 50px -22px rgb(20 22 63 / 0.45); }
-:root.dark { --hover-shadow: 0 1px 0 color-mix(in oklab, white 10%, transparent) inset, 0 26px 50px -22px rgb(0 0 0 / 0.85); }
+   The whole box pops up (image, tag, text and container together) with a soft shadow behind
+   it. Only on real hover devices (mouse/trackpad: no sticky hovers on phones) and never for
+   people who prefer reduced motion. Only transform and shadow animate, so nothing re-lays out
+   the page. No text underlines on hover. */
+:root {
+  --pop-shadow: 0 22px 44px -18px rgb(20 22 63 / 0.38), 0 8px 18px -10px rgb(20 22 63 / 0.22);
+  --pop-shadow-lg: 0 40px 70px -24px rgb(20 22 63 / 0.5), 0 14px 28px -14px rgb(20 22 63 / 0.3);
+  --pop-shadow-sm: 0 12px 24px -14px rgb(20 22 63 / 0.35);
+}
+:root.dark {
+  --pop-shadow: 0 22px 44px -16px rgb(0 0 0 / 0.75), 0 8px 18px -10px rgb(0 0 0 / 0.5);
+  --pop-shadow-lg: 0 40px 70px -22px rgb(0 0 0 / 0.85), 0 14px 28px -14px rgb(0 0 0 / 0.6);
+  --pop-shadow-sm: 0 12px 24px -12px rgb(0 0 0 / 0.7);
+}
 @media (prefers-color-scheme: dark) {
-  :root:not(.light) { --hover-shadow: 0 1px 0 color-mix(in oklab, white 10%, transparent) inset, 0 26px 50px -22px rgb(0 0 0 / 0.85); }
+  :root:not(.light) {
+    --pop-shadow: 0 22px 44px -16px rgb(0 0 0 / 0.75), 0 8px 18px -10px rgb(0 0 0 / 0.5);
+    --pop-shadow-lg: 0 40px 70px -22px rgb(0 0 0 / 0.85), 0 14px 28px -14px rgb(0 0 0 / 0.6);
+    --pop-shadow-sm: 0 12px 24px -12px rgb(0 0 0 / 0.7);
+  }
 }
 
-/* Links that underline on hover: the underline fades in instead of snapping on. */
-.hover\:underline { text-decoration-line: underline; text-decoration-color: transparent; text-underline-offset: 0.18em; }
-.hover\:underline:hover { text-decoration-color: currentColor; }
-
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .hover\:underline { transition: text-decoration-color 0.2s ease, color 0.2s ease; }
-
-  /* Cards and panels lift (the sticky header stays put). */
+  /* Cards, panels, tiles and sections (the sticky header stays put). */
   .glass:not(.glass-strong),
-  .hover-lift {
-    transition: transform 0.3s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.3s ease;
+  .hover-pop,
+  .hover-pop-lg {
+    transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s ease;
   }
   .glass:not(.glass-strong):hover,
-  .hover-lift:hover {
-    transform: translateY(-3px);
-    box-shadow: var(--hover-shadow);
+  .hover-pop:hover {
+    transform: translateY(-5px) scale(1.012);
+    box-shadow: var(--pop-shadow);
+  }
+  /* The lead story rises higher than the rest. */
+  .hover-pop-lg.hover-pop-lg:hover {
+    transform: translateY(-10px) scale(1.01);
+    box-shadow: var(--pop-shadow-lg);
   }
 
-  /* Photos zoom gently inside their frame (avatars and logos don't). */
-  :is(.glass, .hover-zoom, .group) img:not(.rounded-full):not([class*="scale-"]) {
-    transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* Rows inside panels (e.g. Editors' picks) pop as a whole row. */
+  .glass li:has(a) {
+    border-radius: 1rem;
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.25s ease, background-color 0.25s ease;
   }
-  :is(.glass, .hover-zoom, .group):hover img:not(.rounded-full):not([class*="scale-"]) {
-    transform: scale(1.045);
+  .glass li:has(a):hover {
+    transform: translateY(-2px) scale(1.015);
+    background-color: var(--surface);
+    box-shadow: var(--pop-shadow-sm);
   }
 
-  /* List rows inside panels nudge right. */
-  .glass li:has(a) { transition: transform 0.25s cubic-bezier(0.2, 0.7, 0.2, 1); }
-  .glass li:has(a):hover { transform: translateX(3px); }
-
-  /* Buttons and pill links lift, and press down when clicked. */
+  /* Buttons and pill links pop, and press down when clicked. */
   :is(button, summary, a[class*="rounded-full"], a[class*="rounded-md"], a[class*="rounded-lg"]):not(:disabled) {
-    transition: transform 0.18s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
   }
   :is(button, summary, a[class*="rounded-full"], a[class*="rounded-md"], a[class*="rounded-lg"]):not(:disabled):hover {
-    transform: translateY(-1px);
+    transform: translateY(-2px) scale(1.03);
   }
   :is(button, summary, a[class*="rounded-full"], a[class*="rounded-md"], a[class*="rounded-lg"]):not(:disabled):active {
     transform: translateY(0) scale(0.97);

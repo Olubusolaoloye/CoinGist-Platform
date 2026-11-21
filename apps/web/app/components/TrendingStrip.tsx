@@ -39,7 +39,7 @@ export function TrendingStrip({ posts }: { posts: PostSummary[] }) {
       <ul id={id} ref={track} className="no-scrollbar relative flex min-w-0 flex-1 snap-x gap-6 overflow-x-auto scroll-smooth">
         {posts.map((p) => (
           <li key={p.id} className="flex shrink-0 snap-start items-center gap-6 text-sm">
-            <Link to={postPath(p)} className="font-medium whitespace-nowrap hover:underline">{p.title}</Link>
+            <Link to={postPath(p)} className="font-medium whitespace-nowrap">{p.title}</Link>
             <span aria-hidden="true" className="size-1 rounded-full bg-muted" />
           </li>
         ))}

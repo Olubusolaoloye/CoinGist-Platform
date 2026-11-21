@@ -21,7 +21,7 @@ export function CardMeta({ post }: { post: PostSummary }) {
     <div className="relative z-10 flex items-center gap-2 text-sm text-muted">
       <Avatar name={author} url={post.author?.avatarUrl} />
       {post.author ? (
-        <Link to={`/author/${post.author.slug}`} className="font-medium text-ink hover:underline">{author}</Link>
+        <Link to={`/author/${post.author.slug}`} className="font-medium text-ink">{author}</Link>
       ) : (
         <span className="font-medium text-ink">{author}</span>
       )}
@@ -42,7 +42,7 @@ export function StoryCard({ post, headingLevel = 3 }: { post: PostSummary; headi
       </div>
       <div className="flex flex-1 flex-col gap-3 p-4">
         <H className="font-display text-lg leading-snug font-bold text-pretty">
-          <Link to={postPath(post)} className="after:absolute after:inset-0 hover:underline">{post.title}</Link>
+          <Link to={postPath(post)} className="after:absolute after:inset-0">{post.title}</Link>
         </H>
         <div className="mt-auto"><CardMeta post={post} /></div>
       </div>

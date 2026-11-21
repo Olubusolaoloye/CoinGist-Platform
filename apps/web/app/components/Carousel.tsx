@@ -98,7 +98,7 @@ export function Carousel({
           ) : null}
         </div>
       </div>
-      <ul id={id} ref={track} className="no-scrollbar mt-4 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pb-2">
+      <ul id={id} ref={track} className="no-scrollbar mt-1 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-smooth pt-3 pb-5">
         {items.map((child, i) => (
           <li key={i} className={`shrink-0 snap-start ${itemClassName}`}>
             <div role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${items.length}`} className="h-full">

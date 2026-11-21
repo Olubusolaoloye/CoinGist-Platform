@@ -84,12 +84,12 @@ export default function Account({ loaderData }: Route.ComponentProps) {
               <li key={s.id} className="flex items-start justify-between gap-4 py-3">
                 <div>
                   {s.isSponsored ? <SponsoredBadge sponsor={s.sponsorName} /> : null}
-                  <Link to={postPath(s)} className="font-display text-lg leading-snug font-bold hover:underline">{s.title}</Link>
+                  <Link to={postPath(s)} className="font-display text-lg leading-snug font-bold">{s.title}</Link>
                   <p className="text-sm text-muted">{s.category?.name ?? s.type} · Saved {formatDate(s.savedAt)}</p>
                 </div>
                 <Form method="post">
                   <input type="hidden" name="postId" value={s.id} />
-                  <button name="intent" value="unsave" disabled={busy} className="shrink-0 text-sm font-semibold text-link hover:underline">
+                  <button name="intent" value="unsave" disabled={busy} className="shrink-0 text-sm font-semibold text-link">
                     Remove<span className="sr-only"> "{s.title}"</span>
                   </button>
                 </Form>
@@ -108,7 +108,7 @@ export default function Account({ loaderData }: Route.ComponentProps) {
           <ul className="mt-3 flex flex-wrap gap-2">
             {follows.map((f) => (
               <li key={`${f.type}:${f.slug}`} className="flex items-center gap-2 rounded-full border border-line py-1 pr-1 pl-3 text-sm">
-                <Link to={`${FOLLOW_PATH[f.type]}${f.slug}`} className="font-semibold hover:underline">{f.name}</Link>
+                <Link to={`${FOLLOW_PATH[f.type]}${f.slug}`} className="font-semibold">{f.name}</Link>
                 <span className="text-muted">{FOLLOW_TYPE_LABEL[f.type]}</span>
                 <Form method="post">
                   <input type="hidden" name="type" value={f.type} />

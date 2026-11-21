@@ -96,7 +96,7 @@ export default function Article({ loaderData }: Route.ComponentProps) {
           ) : post.category ? (
             <Link
               to={post.category.slug === "africa" ? "/africa" : `/category/${post.category.slug}`}
-              className="text-sm font-semibold text-link hover:underline"
+              className="text-sm font-semibold text-link"
             >
               {post.category.name}
             </Link>
@@ -110,7 +110,7 @@ export default function Article({ loaderData }: Route.ComponentProps) {
             <span>
               By{" "}
               {post.author ? (
-                <Link to={`/author/${post.author.slug}`} className="font-semibold hover:underline">
+                <Link to={`/author/${post.author.slug}`} className="font-semibold">
                   {post.author.name}
                 </Link>
               ) : (

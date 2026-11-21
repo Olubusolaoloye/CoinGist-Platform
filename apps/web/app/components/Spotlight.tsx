@@ -91,7 +91,7 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
       </div>
 
       <div className="mt-4 flex gap-3 sm:gap-4" aria-live={auto.paused || auto.reduce ? "polite" : "off"}>
-        <div className="hover-zoom relative isolate min-h-[26rem] min-w-0 flex-1 overflow-hidden rounded-[1.75rem] bg-night sm:min-h-[30rem] lg:min-h-[34rem]">
+        <div className="hover-pop relative isolate min-h-[26rem] min-w-0 flex-1 overflow-hidden rounded-[1.75rem] bg-night sm:min-h-[30rem] lg:min-h-[34rem]">
           {posts.map((p, i) => (
             <article
               key={p.id}
@@ -114,7 +114,7 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
                     {label(p)}
                   </p>
                   <h3 className="mt-2 font-display text-[1.65rem] leading-[1.08] font-extrabold tracking-tight text-balance sm:text-4xl">
-                    <Link to={postPath(p)} tabIndex={i === active ? 0 : -1} className="hover:underline decoration-gist decoration-2 underline-offset-4">
+                    <Link to={postPath(p)} tabIndex={i === active ? 0 : -1} className="decoration-gist decoration-2 underline-offset-4">
                       {p.title}
                     </Link>
                   </h3>
@@ -140,7 +140,7 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
                   key={p.id}
                   type="button"
                   onClick={() => setActive(i)}
-                  className={`group relative isolate overflow-hidden rounded-[1.5rem] bg-night text-left ${n === 0 ? "w-36 lg:w-44" : "w-20 lg:w-28"}`}
+                  className={`hover-pop group relative isolate overflow-hidden rounded-[1.5rem] bg-night text-left ${n === 0 ? "w-36 lg:w-44" : "w-20 lg:w-28"}`}
                   aria-label={`Show: ${p.title}`}
                 >
                   <Photo post={p} priority={false} sizes="180px" maxWidth={180} />

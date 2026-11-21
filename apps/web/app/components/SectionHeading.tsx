@@ -5,7 +5,7 @@ export function SectionHeading({ title, to, linkLabel }: { title: string; to?: s
     <div className="flex items-baseline justify-between gap-4 border-b-2 border-ink pb-2">
       <h2 className="font-display text-2xl font-extrabold tracking-tight">{title}</h2>
       {to ? (
-        <Link to={to} className="text-sm font-semibold text-link hover:underline">
+        <Link to={to} className="text-sm font-semibold text-link">
           {linkLabel ?? `More ${title.toLowerCase()}`}
         </Link>
       ) : null}

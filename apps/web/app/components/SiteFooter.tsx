@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import type { Category } from "@coingist/types";
 
 const col = "font-display text-base font-bold text-night-ink";
-const item = "text-night-muted hover:text-night-ink hover:underline";
+const item = "text-night-muted hover:text-night-ink";
 
 /** Always-dark footer with link columns and the site-wide disclaimer. */
 export function SiteFooter({ categories }: { categories: Category[] }) {

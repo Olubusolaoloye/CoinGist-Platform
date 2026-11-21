@@ -166,7 +166,7 @@ function CommentBox({
           {busy ? "Posting…" : submitLabel}
         </button>
         {onDone ? (
-          <button type="button" className="text-sm font-semibold text-muted hover:underline" onClick={onDone}>Cancel</button>
+          <button type="button" className="text-sm font-semibold text-muted" onClick={onDone}>Cancel</button>
         ) : null}
         {text.length > COMMENT_MAX - 200 ? <span className="text-xs text-muted">{COMMENT_MAX - text.length} characters left</span> : null}
         {f.data && !f.data.ok ? <p role="alert" className="text-sm text-bad">{f.data.error}</p> : null}
@@ -193,7 +193,7 @@ function SmallAction({ intent, id, postId, children, label, className = "", conf
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="postId" value={postId} />
       <input type="hidden" name="redirectTo" value={here} />
-      <button className={`text-sm font-semibold text-muted hover:text-ink hover:underline disabled:opacity-60 ${className}`} disabled={f.state !== "idle"} aria-label={label}>
+      <button className={`text-sm font-semibold text-muted hover:text-ink disabled:opacity-60 ${className}`} disabled={f.state !== "idle"} aria-label={label}>
         {f.data && !f.data.ok ? <span role="alert" className="text-bad">{f.data.error}</span> : children}
       </button>
     </f.Form>
@@ -267,13 +267,13 @@ function CommentItem({ c, postId, e, reply }: { c: PublicComment; postId: string
           <div className="mt-1.5 flex flex-wrap items-center gap-4">
             <CommentLike c={c} postId={postId} liked={liked} signedIn={signedIn} />
             {signedIn ? (
-              <button type="button" className="text-sm font-semibold text-muted hover:text-ink hover:underline" onClick={() => setMode(mode === "reply" ? "view" : "reply")} aria-expanded={mode === "reply"} aria-label={`Reply to ${name}`}>
+              <button type="button" className="text-sm font-semibold text-muted hover:text-ink" onClick={() => setMode(mode === "reply" ? "view" : "reply")} aria-expanded={mode === "reply"} aria-label={`Reply to ${name}`}>
                 Reply
               </button>
             ) : null}
             {mine ? (
               <>
-                <button type="button" className="text-sm font-semibold text-muted hover:text-ink hover:underline" onClick={() => setMode("edit")} aria-label="Edit your comment">Edit</button>
+                <button type="button" className="text-sm font-semibold text-muted hover:text-ink" onClick={() => setMode("edit")} aria-label="Edit your comment">Edit</button>
                 <SmallAction intent="delete" id={c.id} postId={postId} label="Delete your comment" confirm="Delete your comment? This can't be undone.">Delete</SmallAction>
               </>
             ) : signedIn ? (

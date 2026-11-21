@@ -13,10 +13,10 @@ export function TopicTiles({ categories }: { categories: Category[] }) {
           <li key={c.slug} className={i === 0 ? "col-span-2 row-span-2" : ""}>
             <Link
               to={`/category/${c.slug}`}
-              className={`group relative isolate block h-full overflow-hidden rounded-3xl bg-night ${i === 0 ? "min-h-[16rem] sm:min-h-[22rem]" : "min-h-[10rem] sm:min-h-[10.5rem]"}`}
+              className={`hover-pop group relative isolate block h-full overflow-hidden rounded-3xl bg-night ${i === 0 ? "min-h-[16rem] sm:min-h-[22rem]" : "min-h-[10rem] sm:min-h-[10.5rem]"}`}
             >
               {c.image ? (
-                <Picture url={c.image.url} maxWidth={i === 0 ? 720 : 360} sizes={i === 0 ? "(min-width: 1024px) 560px, 100vw" : "(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                <Picture url={c.image.url} maxWidth={i === 0 ? 720 : 360} sizes={i === 0 ? "(min-width: 1024px) 560px, 100vw" : "(min-width: 1024px) 270px, (min-width: 640px) 33vw, 50vw"} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover" />
               ) : (
                 <span aria-hidden="true" className="placeholder-art absolute inset-0" />
               )}

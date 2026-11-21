@@ -18,7 +18,7 @@ export function EditorsPicks({ posts }: { posts: PostSummary[] }) {
             <PostImage image={p.heroImage} ratio="photo" sizes="64px" className="w-16 shrink-0" />
             <div className="min-w-0">
               <h3 className="text-[0.95rem] leading-snug font-semibold">
-                <Link to={postPath(p)} className="after:absolute after:inset-0 hover:underline">{p.title}</Link>
+                <Link to={postPath(p)} className="after:absolute after:inset-0">{p.title}</Link>
               </h3>
               <time dateTime={p.publishedAt} className="text-xs text-muted">{formatDate(p.publishedAt)}</time>
             </div>

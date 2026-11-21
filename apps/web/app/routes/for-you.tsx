@@ -51,7 +51,7 @@ export default function ForYou({ loaderData }: Route.ComponentProps) {
           <ul className="mt-4 grid gap-2 sm:grid-cols-2">
             {topics.map((c) => (
               <li key={c.slug} className="flex items-center justify-between gap-3 rounded-lg border border-line bg-surface px-4 py-3">
-                <Link to={c.slug === "africa" ? "/africa" : `/category/${c.slug}`} className="font-semibold hover:underline">{c.name}</Link>
+                <Link to={c.slug === "africa" ? "/africa" : `/category/${c.slug}`} className="font-semibold">{c.name}</Link>
                 {followed.has(`category:${c.slug}`) ? <span className="text-sm text-muted">Following</span> : <FollowButton type="category" slug={c.slug} name={c.name} />}
               </li>
             ))}
@@ -68,7 +68,7 @@ export default function ForYou({ loaderData }: Route.ComponentProps) {
                   <span className="sr-only"> ({WHY[s.because.type]})</span>
                 </p>
                 <h2 className="mt-1 font-display text-xl leading-snug font-bold">
-                  <Link to={postPath(s)} className="after:absolute after:inset-0 hover:underline">{s.title}</Link>
+                  <Link to={postPath(s)} className="after:absolute after:inset-0">{s.title}</Link>
                 </h2>
                 {s.excerpt ? <p className="mt-1 line-clamp-2 text-muted">{s.excerpt}</p> : null}
                 <p className="mt-1 text-sm text-muted">{s.author?.name ?? "CoinGist"} · {formatDate(s.publishedAt)} · {s.readMinutes} min read</p>

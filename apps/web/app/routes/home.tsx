@@ -118,7 +118,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             label={r.title}
             className="mt-14"
             heading={<SectionTitle title={r.title} />}
-            action={<Link to={r.to} className="mr-2 hidden text-sm font-semibold text-link hover:underline sm:inline">See all</Link>}
+            action={<Link to={r.to} className="mr-2 hidden text-sm font-semibold text-link sm:inline">See all</Link>}
             itemClassName="w-[82%] sm:w-[46%] lg:w-[31.5%]"
           >
             {r.posts.map((p: PostSummary) => <StoryCard key={p.id} post={p} />)}
@@ -139,7 +139,7 @@ function GistCard({ lead, bullets }: { lead: PostSummary; bullets: string[] }) {
       </svg>
       <h2 id="todays-gist" className="font-display text-lg font-extrabold">Today's gist in 30 seconds</h2>
       <p className="mt-2 font-display text-xl leading-tight font-extrabold text-balance">
-        <Link to={postPath(lead)} className="hover:underline">{lead.title}</Link>
+        <Link to={postPath(lead)}>{lead.title}</Link>
       </p>
       <ul className="mt-3 space-y-2 text-[0.95rem]">
         {bullets.map((b) => (

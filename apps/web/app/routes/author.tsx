@@ -112,7 +112,7 @@ export default function AuthorPage({ loaderData }: Route.ComponentProps) {
             <ul className="mt-3 flex flex-wrap gap-4 text-sm">
               {socials.map(([k, href]) => (
                 <li key={k}>
-                  <a href={href} rel="me noopener noreferrer" target="_blank" className="font-medium text-link hover:underline">
+                  <a href={href} rel="me noopener noreferrer" target="_blank" className="font-medium text-link">
                     {SOCIAL_LABEL[k] ?? k}
                     <span className="sr-only"> (opens in a new tab)</span>
                   </a>
