@@ -91,7 +91,7 @@ export function Spotlight({ posts }: { posts: PostSummary[] }) {
       </div>
 
       <div className="mt-4 flex gap-3 sm:gap-4" aria-live={auto.paused || auto.reduce ? "polite" : "off"}>
-        <div className="relative isolate min-h-[26rem] min-w-0 flex-1 overflow-hidden rounded-[1.75rem] bg-night sm:min-h-[30rem] lg:min-h-[34rem]">
+        <div className="hover-zoom relative isolate min-h-[26rem] min-w-0 flex-1 overflow-hidden rounded-[1.75rem] bg-night sm:min-h-[30rem] lg:min-h-[34rem]">
           {posts.map((p, i) => (
             <article
               key={p.id}
