@@ -36,6 +36,8 @@ export function pageUrls(site: SiteConfig, data: SitemapData): SitemapUrl[] {
     { loc: absoluteUrl(site, "/news"), lastmod: newest("news") },
     { loc: absoluteUrl(site, "/gist"), lastmod: newest("gist") },
     { loc: absoluteUrl(site, "/learn"), lastmod: newest("learn") },
+    { loc: absoluteUrl(site, "/live"), lastmod: newest() },
+    { loc: absoluteUrl(site, "/learn-earn") },
     { loc: absoluteUrl(site, "/events") },
     { loc: absoluteUrl(site, "/opportunities") },
     { loc: absoluteUrl(site, "/newsletter") },

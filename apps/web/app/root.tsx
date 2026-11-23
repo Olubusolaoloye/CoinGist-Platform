@@ -9,6 +9,7 @@ import {
   ScrollRestoration,
   useRouteLoaderData,
 } from "react-router";
+import { useEffect } from "react";
 import fontUrl from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url";
 import type { Route } from "./+types/root";
 import { BottomNav } from "./components/BottomNav";
@@ -17,6 +18,7 @@ import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
 import { analyticsConfig, isDemo, siteConfig } from "./lib/config.server";
+import { HIDDEN_NAV_TOPICS } from "./lib/format";
 import { readTheme } from "./lib/theme.server";
 import { useNonce } from "./lib/nonce";
 import "./app.css";
@@ -25,6 +27,7 @@ export const links: Route.LinksFunction = () => [
   { rel: "preload", href: fontUrl, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
   { rel: "apple-touch-icon", href: "/logo-512.png" },
+  { rel: "manifest", href: "/manifest.webmanifest" },
   { rel: "alternate", type: "application/rss+xml", title: "CoinGist", href: "/rss.xml" },
 ];
 
@@ -35,7 +38,8 @@ export async function loader({ request }: Route.LoaderArgs) {
   const analytics = analyticsConfig();
   return data({
     site,
-    categories,
+    // Menus, topic tiles and follow suggestions use this trimmed list.
+    categories: categories.filter((c) => !HIDDEN_NAV_TOPICS.includes(c.slug)),
     prices,
     theme: readTheme(request),
     demo: isDemo(),
@@ -56,6 +60,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#1b1f5e" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="CoinGist" />
         <style nonce={nonce} dangerouslySetInnerHTML={{ __html: fontFace }} />
         <Meta />
         <Links />
@@ -100,6 +106,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Installable app + offline reading. Production only: Vite's dev server must not be cached.
+  useEffect(() => {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
   return <Outlet />;
 }
 

@@ -141,9 +141,13 @@ test.describe("navigation", () => {
     await page.goto("/");
     const bottom = page.getByRole("navigation", { name: "Primary" });
     await expect(bottom).toBeVisible();
-    await bottom.getByRole("link", { name: "Learn" }).click();
-    await expect(page).toHaveURL("/learn");
-    await expect(bottom.getByRole("link", { name: "Learn" })).toHaveAttribute("aria-current", "page");
+    await expect(bottom.getByRole("link", { name: "Africa" })).toHaveCount(0);
+    await bottom.getByRole("link", { name: "Learn & Earn" }).click();
+    await expect(page).toHaveURL("/learn-earn");
+    await expect(bottom.getByRole("link", { name: "Learn & Earn" })).toHaveAttribute("aria-current", "page");
+    // The tab stays lit inside the group.
+    await page.goto("/opportunities");
+    await expect(bottom.getByRole("link", { name: "Learn & Earn" })).toHaveAttribute("aria-current", "page");
 
     await page.getByLabel("Menu").click();
     await page.getByRole("link", { name: "Security" }).last().click();
@@ -493,7 +497,7 @@ test.describe("content security policy", () => {
 
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/advertise", "/privacy", "/terms", "/search?q=stablecoin", "/events", "/events/lagos-blockchain-summit", "/opportunities", "/opportunities/payments-builder-grant", "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/advertise", "/privacy", "/terms", "/search?q=stablecoin", "/events", "/events/lagos-blockchain-summit", "/opportunities", "/opportunities/payments-builder-grant", "/learn-earn", "/live", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);
@@ -603,6 +607,52 @@ test.describe("events and opportunities", () => {
     await page.goto("/opportunities/testnet-points-airdrop");
     await expect(page.getByText("This opportunity has closed.")).toBeVisible();
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
+
+  test("Learn & Earn groups guides, opportunities and events; Africa and Regulation are out of the menus", async ({ page, isMobile }) => {
+    await page.goto("/learn-earn");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Learn & Earn");
+    const sections = page.getByRole("navigation", { name: "Learn and Earn sections" });
+    for (const name of ["Learn crypto", "Airdrops & opportunities", "Events"]) await expect(sections.getByRole("link", { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Airdrops & opportunities" })).toContainText("Payments builder grant (sample)");
+    await expect(page.getByRole("region", { name: "Upcoming events" })).toContainText("Lagos Blockchain Summit (sample)");
+    await expect(page.getByRole("complementary", { name: "Stay safe" })).toBeVisible();
+
+    const header = page.getByRole("banner");
+    await expect(header.getByRole("link", { name: "Africa", exact: true })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: "Regulation", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("contentinfo").getByRole("link", { name: "Regulation", exact: true })).toHaveCount(0);
+    // Old links keep working.
+    await page.goto("/africa");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Africa");
+
+    if (!isMobile) {
+      await page.goto("/");
+      const sectionsNav = page.getByRole("navigation", { name: "Sections", exact: true });
+      await sectionsNav.getByRole("link", { name: "Learn & Earn" }).hover();
+      await sectionsNav.getByRole("link", { name: /Airdrops & opportunities/ }).click();
+      await expect(page).toHaveURL("/opportunities");
+    }
+  });
+
+  test("Live lists every story newest first with times", async ({ page }) => {
+    await page.goto("/live");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Live");
+    const times = await page.locator("main ol time").evaluateAll((els) => els.map((e) => e.getAttribute("datetime")!));
+    expect(times.length).toBeGreaterThan(3);
+    expect([...times].sort().reverse()).toEqual(times);
+    await page.goto("/");
+    await page.getByRole("link", { name: "Just in" }).click();
+    await expect(page).toHaveURL("/live");
+  });
+
+  test("the site is installable: manifest, icons and service worker", async ({ page, request }) => {
+    await page.goto("/");
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
+    const manifest = await (await request.get("/manifest.webmanifest")).json();
+    expect(manifest).toMatchObject({ name: "CoinGist", display: "standalone", start_url: "/?source=app" });
+    for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBe(true);
+    expect((await request.get("/sw.js")).ok()).toBe(true);
   });
 
   test("the home page shows upcoming events and open opportunities; both are in the menu and the sitemap", async ({ page, request }) => {

@@ -20,13 +20,12 @@ import { passLoaderHeaders } from "~/lib/headers";
 export const headers = passLoaderHeaders;
 
 export async function loader() {
-  const [latest, picks, news, gist, learn, africa, ads, events, opportunities] = await Promise.all([
+  const [latest, picks, news, gist, learn, ads, events, opportunities] = await Promise.all([
     api.listPosts({ pageSize: 12 }),
     api.listPosts({ featured: true, pageSize: 5 }),
     api.listPosts({ type: "news", pageSize: 8 }),
     api.listPosts({ type: "gist", pageSize: 8 }),
     api.listPosts({ type: "learn", pageSize: 8 }),
-    api.listPosts({ category: "africa", pageSize: 8 }),
     api.ads("home"),
     api.listingsTeaser("event", 3),
     api.listingsTeaser("opportunity", 3),
@@ -44,8 +43,7 @@ export async function loader() {
     rows: [
       { key: "news", title: "Latest news", to: "/news", posts: news.items },
       { key: "gist", title: "The gist", to: "/gist", posts: gist.items },
-      { key: "learn", title: "Learn", to: "/learn", posts: learn.items },
-      { key: "africa", title: "Across Africa", to: "/africa", posts: africa.items },
+      { key: "learn", title: "Learn crypto", to: "/learn", posts: learn.items },
     ],
     homeBanner: ads.find((s) => s.key === "home-banner"),
     events,

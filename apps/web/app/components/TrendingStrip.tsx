@@ -34,7 +34,7 @@ export function TrendingStrip({ posts }: { posts: PostSummary[] }) {
     <section aria-label="Just in" className="glass flex items-center gap-3 rounded-2xl px-4 py-2.5" {...auto.bind}>
       <h2 className="flex shrink-0 items-center gap-2 font-display text-base font-extrabold">
         <span aria-hidden="true" className="size-2.5 rounded-full bg-gist ring-4 ring-gist/30" />
-        Just in
+        <Link to="/live">Just in</Link>
       </h2>
       <ul id={id} ref={track} className="no-scrollbar relative flex min-w-0 flex-1 snap-x gap-6 overflow-x-auto scroll-smooth">
         {posts.map((p) => (
