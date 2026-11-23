@@ -9,7 +9,7 @@ import type {
   PriceTicker,
   PublicAdSlot,
   SitemapData,
-  TagRef, StoryEngagement } from "@coingist/types";
+  TagRef, StoryEngagement, ListingCategory, ListingKind, ListingScope, PublicListing } from "@coingist/types";
 import { apiUrl } from "./config.server";
 
 /**
@@ -78,6 +78,26 @@ export const api = {
   },
   async getTag(slug: string): Promise<TagRef> {
     return (await get<{ tag: TagRef }>(`/tags/${encodeURIComponent(slug)}`))!.tag;
+  },
+  async listings(
+    kind: ListingKind,
+    q: { scope?: ListingScope; category?: ListingCategory | undefined; page?: number; pageSize?: number } = {},
+  ): Promise<Paginated<PublicListing>> {
+    const params = new URLSearchParams({ kind, page: String(q.page ?? 1), pageSize: String(q.pageSize ?? 12) });
+    if (q.scope) params.set("scope", q.scope);
+    if (q.category) params.set("category", q.category);
+    return (await get<Paginated<PublicListing>>(`/listings?${params}`))!;
+  },
+  /** Home page teasers never break the page: on any error, show nothing. */
+  async listingsTeaser(kind: ListingKind, n: number): Promise<PublicListing[]> {
+    try {
+      return (await this.listings(kind, { pageSize: n })).items;
+    } catch {
+      return [];
+    }
+  },
+  async listing(kind: ListingKind, slug: string): Promise<PublicListing> {
+    return (await get<{ listing: PublicListing }>(`/listings/${kind}/${encodeURIComponent(slug)}`))!.listing;
   },
   /** Ads never break a page: on any error, render the slots empty. */
   async ads(placement: "home" | "article"): Promise<PublicAdSlot[]> {

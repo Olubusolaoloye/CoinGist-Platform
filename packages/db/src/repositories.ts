@@ -9,6 +9,7 @@ import { createReaderRepository, type ReaderRepository } from "./readers.js";
 import { createStudioRepository, type StudioRepository } from "./studio.js";
 import { createAuthorsRepository, type AuthorsRepository } from "./authors.js";
 import { createEngagementRepository, type EngagementRepository } from "./engagement.js";
+import { createListingsRepository, type ListingsRepository } from "./listings.js";
 import { DomainError, mapDbError } from "./errors.js";
 
 /**
@@ -28,6 +29,7 @@ export interface Repositories {
   studio: StudioRepository;
   authors: AuthorsRepository;
   engagement: EngagementRepository;
+  listings: ListingsRepository;
   users: {
     findById(id: string): Promise<User | null>;
     list(actor: SessionClaims, opts: { limit: number; offset: number }): Promise<User[]>;
@@ -106,6 +108,7 @@ export function createPgRepositories(db: Database): Repositories {
     studio: createStudioRepository(db),
     authors: createAuthorsRepository(db),
     engagement: createEngagementRepository(db),
+    listings: createListingsRepository(db),
     users: {
       findById: (id) =>
         run(

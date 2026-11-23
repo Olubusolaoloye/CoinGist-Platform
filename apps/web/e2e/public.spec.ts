@@ -493,7 +493,7 @@ test.describe("content security policy", () => {
 
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/advertise", "/privacy", "/terms", "/search?q=stablecoin", "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/advertise", "/privacy", "/terms", "/search?q=stablecoin", "/events", "/events/lagos-blockchain-summit", "/opportunities", "/opportunities/payments-builder-grant", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);
@@ -559,6 +559,60 @@ test.describe("homepage motion", () => {
     await expect(slides.first()).toHaveAttribute("data-active", "true");
     expect(await page.locator(".marquee-track").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
     await expect(page.getByRole("button", { name: "Pause spotlight stories" })).toHaveCount(0);
+  });
+});
+
+test.describe("events and opportunities", () => {
+  test("events: upcoming soonest first, past on its own tab, a detail page with structured data and a calendar file", async ({ page, request }) => {
+    await page.goto("/events");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Events");
+    const titles = await page.getByRole("main").getByRole("heading", { level: 3 }).allInnerTexts();
+    expect(titles).toEqual(["Stablecoins 101 live class (sample)", "Lagos Blockchain Summit (sample)"]);
+    await page.getByRole("link", { name: "Past", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Nairobi crypto meetup (sample)" })).toBeVisible();
+
+    await page.goto("/events/lagos-blockchain-summit");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Lagos Blockchain Summit (sample)");
+    await expect(page.getByText("Lagos, Nigeria")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Official event page/ })).toHaveAttribute("rel", "noopener nofollow");
+    const ld = (await jsonLd(page)).find((d) => d["@type"] === "Event");
+    expect(ld).toMatchObject({ name: "Lagos Blockchain Summit (sample)", location: { "@type": "Place", name: "Lagos, Nigeria" } });
+
+    const ics = await request.get("/events/lagos-blockchain-summit/calendar.ics");
+    expect(ics.headers()["content-type"]).toContain("text/calendar");
+    const body = await ics.text();
+    expect(body).toContain("BEGIN:VEVENT");
+    expect(body).toContain("SUMMARY:Lagos Blockchain Summit (sample)");
+    expect((await request.get("/events/no-such-event")).status()).toBe(404);
+  });
+
+  test("opportunities: open and closed tabs, type filter, safety warning and a checked date", async ({ page }) => {
+    await page.goto("/opportunities");
+    await expect(page.getByRole("complementary", { name: "Stay safe" })).toContainText("Never share your seed phrase");
+    await expect(page.getByRole("heading", { name: "Payments builder grant (sample)" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Testnet points airdrop (sample)" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Closed", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Testnet points airdrop (sample)" })).toBeVisible();
+    await page.goto("/opportunities?type=airdrop");
+    await expect(page.getByText("No open opportunities right now")).toBeVisible();
+
+    await page.goto("/opportunities/payments-builder-grant");
+    await expect(page.getByText("Up to $10,000")).toBeVisible();
+    await expect(page.getByText(/Checked by the CoinGist editors on/)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Go to the official page/ })).toBeVisible();
+    await page.goto("/opportunities/testnet-points-airdrop");
+    await expect(page.getByText("This opportunity has closed.")).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
+
+  test("the home page shows upcoming events and open opportunities; both are in the menu and the sitemap", async ({ page, request }) => {
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Upcoming events" }).getByRole("heading", { level: 3 }).first()).toHaveText("Stablecoins 101 live class (sample)");
+    await expect(page.getByRole("region", { name: "Airdrops & opportunities" })).toContainText("Payments builder grant (sample)");
+    await expect(page.getByRole("contentinfo").getByRole("link", { name: "Events" })).toHaveAttribute("href", "/events");
+    const sitemap = await (await request.get("/sitemap-pages.xml")).text();
+    expect(sitemap).toContain("/events/lagos-blockchain-summit</loc>");
+    expect(sitemap).toContain("/opportunities</loc>");
   });
 });
 

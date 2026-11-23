@@ -10,6 +10,11 @@ export default [
   route("tag/:slug", "routes/tag.tsx"),
   route("author/:slug", "routes/author.tsx"),
   route("newsletter", "routes/newsletter.tsx"),
+  route("events", "routes/events.tsx"),
+  route("events/:slug", "routes/events.$slug.tsx"),
+  route("events/:slug/calendar.ics", "routes/events.$slug.calendar.ts"),
+  route("opportunities", "routes/opportunities.tsx"),
+  route("opportunities/:slug", "routes/opportunities.$slug.tsx"),
   route("about", "routes/about.tsx"),
   route("search", "routes/search.tsx"),
   // Reader accounts (private, never cached).

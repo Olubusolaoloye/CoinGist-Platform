@@ -320,6 +320,46 @@ test.describe("reader comments", () => {
   });
 });
 
+test.describe("events and opportunities", () => {
+  test("a writer drafts an event; an editor publishes an opportunity only after the safety checklist", async ({ page }) => {
+    const stamp = Date.now();
+    await signIn(page, WRITER);
+    await page.getByRole("link", { name: "Events & opportunities" }).click();
+    await page.getByRole("link", { name: "New event" }).click();
+    await page.getByLabel("Title").fill(`Accra builders meetup ${stamp}`);
+    await page.getByLabel("Type").selectOption({ label: "Meetup" });
+    await page.getByLabel("Summary").fill("An evening of demos for developers in Accra.");
+    await page.getByLabel("Official link").fill("https://example.com/accra");
+    await page.getByLabel("Starts").fill("2030-03-14T18:00");
+    await page.getByLabel("Where").fill("Accra, Ghana");
+    await expect(page.getByRole("button", { name: "Publish" })).toHaveCount(0); // writers can't publish
+    await page.getByRole("button", { name: "Save draft" }).click();
+    await expect(page.getByRole("status")).toHaveText("Saved.");
+    await expect(page.getByRole("listitem").filter({ hasText: `Accra builders meetup ${stamp}` })).toContainText("Draft");
+    await signOut(page);
+
+    await signIn(page, EDITOR);
+    await page.goto("/listings/new?kind=opportunity");
+    await page.getByLabel("Title").fill(`Hackathon prize ${stamp}`);
+    await page.getByLabel("Type").selectOption({ label: "Hackathon" });
+    await page.getByLabel("Summary").fill("Build a payments app over a weekend; top teams share the prize pool.");
+    await page.getByLabel("Official link").fill("https://example.com/hackathon");
+    await page.getByLabel("Reward (optional)").fill("$5,000 prize pool");
+    const publish = page.getByRole("button", { name: "Publish" });
+    await expect(publish).toBeDisabled();
+    const boxes = page.getByRole("group", { name: "Safety checklist" }).getByRole("checkbox");
+    await expect(async () => {
+      for (const box of await boxes.all()) await box.check();
+      await expect(publish).toBeEnabled({ timeout: 1000 });
+    }).toPass();
+    await publish.click();
+    await expect(page.getByRole("status")).toHaveText("Saved.");
+    const row = page.getByRole("listitem").filter({ hasText: `Hackathon prize ${stamp}` });
+    await expect(row).toContainText("Live");
+    await expect(row).not.toContainText("Safety check needed");
+  });
+});
+
 test.describe("sponsorship, ads and link safety", () => {
   test("a story linking to a blocked domain can't be approved, and the editor sees why", async ({ page }) => {
     const domain = `scam-${Date.now()}.example`;

@@ -28,6 +28,8 @@ export default [
     route("trending", "routes/app.trending.tsx"),
     route("authors", "routes/app.authors.tsx"),
     route("comments", "routes/app.comments.tsx"),
+    route("listings", "routes/app.listings.tsx"),
+    route("listings/:id", "routes/app.listings.$id.tsx"),
     route("authors/:id", "routes/app.authors.$id.tsx"),
   ]),
   route("*", "routes/not-found.tsx"),

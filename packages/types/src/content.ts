@@ -100,6 +100,8 @@ export interface SitemapData {
   authors: Array<{ slug: string; lastPublishedAt: string | null }>;
   /** Only tags with enough stories to be indexed (thin tag pages are noindex). */
   tags: Array<{ slug: string; lastPublishedAt: string }>;
+  /** Published events and opportunities. */
+  listings?: Array<{ kind: "event" | "opportunity"; slug: string; updatedAt: string }>;
 }
 
 /** Tag pages with fewer stories than this are noindex and left out of sitemaps. */

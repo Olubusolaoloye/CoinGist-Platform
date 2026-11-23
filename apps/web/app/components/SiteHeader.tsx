@@ -10,6 +10,8 @@ const SECTIONS = [
   { to: "/gist", label: "Gist" },
   { to: "/learn", label: "Learn" },
   { to: "/africa", label: "Africa" },
+  { to: "/events", label: "Events" },
+  { to: "/opportunities", label: "Airdrops" },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }) =>

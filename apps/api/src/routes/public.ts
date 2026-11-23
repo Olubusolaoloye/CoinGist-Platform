@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
-import { PostTypeSchema, SlugSchema } from "@coingist/types";
+import { LISTING_CATEGORY_LABEL, LISTING_SCOPES, PostTypeSchema, SlugSchema, type ListingCategory } from "@coingist/types";
 import type { AppEnv } from "../context.js";
 
 /** CDN-cacheable for a minute; serve stale for 5 while revalidating. */
@@ -60,7 +60,36 @@ export const publicRoutes = new Hono<AppEnv>()
     const tag = await c.var.repos.content.getTag(c.req.valid("param").slug);
     return tag ? c.json({ tag }) : c.json(notFound, 404);
   })
-  .get("/sitemap", async (c) => c.json(await c.var.repos.content.sitemap()))
+  .get("/sitemap", async (c) => {
+    const [content, listings] = await Promise.all([c.var.repos.content.sitemap(), c.var.repos.listings.sitemap()]);
+    return c.json({ ...content, listings });
+  })
+  // Events and opportunities.
+  .get(
+    "/listings",
+    zValidator(
+      "query",
+      z.object({
+        kind: z.enum(["event", "opportunity"]),
+        scope: z.enum(LISTING_SCOPES).optional(),
+        category: z.enum(Object.keys(LISTING_CATEGORY_LABEL) as [ListingCategory, ...ListingCategory[]]).optional(),
+        page: z.coerce.number().int().min(1).max(500).default(1),
+        pageSize: z.coerce.number().int().min(1).max(50).default(20),
+      }),
+    ),
+    async (c) => {
+      const q = c.req.valid("query");
+      const scope = q.scope ?? (q.kind === "event" ? "upcoming" : "open");
+      const fits = q.kind === "event" ? scope === "upcoming" || scope === "past" : scope === "open" || scope === "closed";
+      if (!fits) return c.json({ error: { code: "invalid", message: `Scope ${scope} doesn't apply to ${q.kind}s` } }, 400);
+      return c.json(await c.var.repos.listings.list(q.kind, { ...q, scope }));
+    },
+  )
+  .get("/listings/:kind/:slug", zValidator("param", z.object({ kind: z.enum(["event", "opportunity"]), slug: SlugSchema })), async (c) => {
+    const { kind, slug } = c.req.valid("param");
+    const listing = await c.var.repos.listings.get(kind, slug);
+    return listing ? c.json({ listing }) : c.json(notFound, 404);
+  })
   .get("/authors/:slug", zValidator("param", SlugParam), async (c) => {
     const author = await c.var.repos.content.getAuthor(c.req.valid("param").slug);
     return author ? c.json({ author }) : c.json(notFound, 404);

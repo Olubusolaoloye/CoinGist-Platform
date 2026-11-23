@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { z } from "zod";
 import {
   AuthorProfileInputSchema,
+  ListingInputSchema,
   MODERATION_FILTERS,
   CalendarQuerySchema,
   CommentInputSchema,
@@ -165,6 +166,24 @@ export const studioRoutes = new Hono<AppEnv>()
   )
   .delete("/reader-comments/:id", requirePermission("post:review"), zValidator("param", Id), async (c) => {
     await c.var.repos.engagement.deleteComment(c.var.claims!, c.req.valid("param").id);
+    return c.body(null, 204);
+  })
+  // Events and opportunities: writers draft, editors publish (the database enforces both).
+  .get("/listings", requirePermission("post:create"), zValidator("query", z.object({ kind: z.enum(["event", "opportunity"]).optional() })), async (c) =>
+    c.json({ listings: await c.var.repos.listings.studioList(c.var.claims!, c.req.valid("query").kind) }),
+  )
+  .get("/listings/:id", requirePermission("post:create"), zValidator("param", Id), async (c) => {
+    const listing = await c.var.repos.listings.studioGet(c.var.claims!, c.req.valid("param").id);
+    return listing ? c.json({ listing }) : c.json({ error: { code: "not_found", message: "Not found" } }, 404);
+  })
+  .post("/listings", requirePermission("post:create"), zValidator("json", ListingInputSchema), async (c) =>
+    c.json({ listing: await c.var.repos.listings.create(c.var.claims!, c.req.valid("json")) }, 201),
+  )
+  .put("/listings/:id", requirePermission("post:create"), zValidator("param", Id), zValidator("json", ListingInputSchema), async (c) =>
+    c.json({ listing: await c.var.repos.listings.update(c.var.claims!, c.req.valid("param").id, c.req.valid("json")) }),
+  )
+  .delete("/listings/:id", requirePermission("post:create"), zValidator("param", Id), async (c) => {
+    await c.var.repos.listings.remove(c.var.claims!, c.req.valid("param").id);
     return c.body(null, 204);
   })
   .get("/review-queue", requirePermission("post:review"), async (c) =>

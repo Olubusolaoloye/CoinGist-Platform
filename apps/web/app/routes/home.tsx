@@ -3,6 +3,7 @@ import { buildMeta, organizationJsonLd, websiteJsonLd } from "@coingist/seo";
 import { postPath, type Category, type PostSummary, type PriceTicker } from "@coingist/types";
 import type { Route } from "./+types/home";
 import { AdSlot } from "~/components/AdSlot";
+import { ListingCard } from "~/components/ListingCard";
 import { Carousel } from "~/components/Carousel";
 import { EditorsPicks } from "~/components/EditorsPicks";
 import { LatestList } from "~/components/LatestList";
@@ -19,7 +20,7 @@ import { passLoaderHeaders } from "~/lib/headers";
 export const headers = passLoaderHeaders;
 
 export async function loader() {
-  const [latest, picks, news, gist, learn, africa, ads] = await Promise.all([
+  const [latest, picks, news, gist, learn, africa, ads, events, opportunities] = await Promise.all([
     api.listPosts({ pageSize: 12 }),
     api.listPosts({ featured: true, pageSize: 5 }),
     api.listPosts({ type: "news", pageSize: 8 }),
@@ -27,6 +28,8 @@ export async function loader() {
     api.listPosts({ type: "learn", pageSize: 8 }),
     api.listPosts({ category: "africa", pageSize: 8 }),
     api.ads("home"),
+    api.listingsTeaser("event", 3),
+    api.listingsTeaser("opportunity", 3),
   ]);
   const editorial = latest.items.filter((p) => !p.isSponsored);
   const lead = editorial[0] ?? null;
@@ -45,6 +48,8 @@ export async function loader() {
       { key: "africa", title: "Across Africa", to: "/africa", posts: africa.items },
     ],
     homeBanner: ads.find((s) => s.key === "home-banner"),
+    events,
+    opportunities,
   });
 }
 
@@ -65,7 +70,7 @@ function SectionTitle({ title }: { title: string }) {
 }
 
 export default function Home({ loaderData }: Route.ComponentProps) {
-  const { lead, leadGist, latest, spotlight, picks, rows, homeBanner } = loaderData;
+  const { lead, leadGist, latest, spotlight, picks, rows, homeBanner, events, opportunities } = loaderData;
   const root = useRouteLoaderData<{ categories: Category[]; prices: PriceTicker | null }>("root");
 
   if (!lead) {
@@ -109,6 +114,34 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <AdSlot slot={homeBanner} slotKey="home-banner" className="mt-12" />
 
       <div className="mt-14"><TopicTiles categories={(root?.categories ?? []).slice(0, 7)} /></div>
+
+      {events.length || opportunities.length ? (
+        <div className="mt-14 grid gap-10 lg:grid-cols-2">
+          {events.length ? (
+            <section aria-labelledby="home-events">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 id="home-events" className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Upcoming events</h2>
+                <Link to="/events" className="text-sm font-semibold text-link">All events</Link>
+              </div>
+              <ul className="mt-4 grid gap-3">
+                {events.map((l) => <li key={l.id}><ListingCard listing={l} compact /></li>)}
+              </ul>
+            </section>
+          ) : null}
+          {opportunities.length ? (
+            <section aria-labelledby="home-opps">
+              <div className="flex items-baseline justify-between gap-3">
+                <h2 id="home-opps" className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Airdrops &amp; opportunities</h2>
+                <Link to="/opportunities" className="text-sm font-semibold text-link">See all</Link>
+              </div>
+              <ul className="mt-4 grid gap-3">
+                {opportunities.map((l) => <li key={l.id}><ListingCard listing={l} compact /></li>)}
+              </ul>
+              <p className="mt-3 text-xs text-muted">Checked by our editors. Never share your seed phrase or pay to qualify.</p>
+            </section>
+          ) : null}
+        </div>
+      ) : null}
 
       {rows
         .filter((r) => r.posts.length > 0)

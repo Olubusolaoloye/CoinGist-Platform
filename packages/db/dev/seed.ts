@@ -300,6 +300,30 @@ export async function seedDevData(pg: PGlite): Promise<void> {
     }
   }
 
+  // Sample events and opportunities (fictional). Inserted directly, so the publishing guard (which
+  // checks for a signed-in editor) is switched off for these statements.
+  const day = 86_400_000;
+  const when = (d: number) => new Date(Date.now() + d * day).toISOString();
+  await pg.exec("alter table public.listings disable trigger listings_guard");
+  const listings: Array<[string, string, string, string, string, string | null, string | null, string | null, boolean, string | null]> = [
+    ["event", "conference", "Lagos Blockchain Summit (sample)", "lagos-blockchain-summit", "Sample event: two days of talks for builders, founders and regulators.", when(12), when(13), "Lagos, Nigeria", false, null],
+    ["event", "online", "Stablecoins 101 live class (sample)", "stablecoins-101-live-class", "Sample event: a free one-hour online class on how stablecoins work.", when(5), null, null, true, null],
+    ["event", "meetup", "Nairobi crypto meetup (sample)", "nairobi-crypto-meetup", "Sample event: a past community meetup for developers in Nairobi.", when(-20), when(-20), "Nairobi, Kenya", false, null],
+    ["opportunity", "grant", "Payments builder grant (sample)", "payments-builder-grant", "Sample opportunity: funding for teams building cross-border payments in Africa.", null, when(30), "Builders in Africa", true, "Up to $10,000"],
+    ["opportunity", "airdrop", "Testnet points airdrop (sample)", "testnet-points-airdrop", "Sample opportunity: earn points by using a project's testnet before the deadline.", null, when(-3), "Everyone", true, "Token allocation"],
+  ];
+  for (const [kind, category, title, slug, summary, starts, ends, location, online, reward] of listings) {
+    await pg.query(
+      `insert into public.listings (kind, category, title, slug, summary, details, url, starts_at, ends_at, location, is_online, reward,
+         organizer, status, safety_checked, checked_at, checked_by, published_at, created_by)
+       values ($1, $2, $3, $4, $5, $6, 'https://example.com/', $7, $8, $9, $10, $11, 'Example Org (fictional)', 'published',
+         $12, case when $12 then now() end, case when $12 then $13::uuid end, now(), $13)`,
+      [kind, category, title, slug, summary, "Fictional sample listing for development and tests.\n\nNothing here is real.", starts, ends, location, online, reward,
+       kind === "opportunity", userIds["tunde"]],
+    );
+  }
+  await pg.exec("alter table public.listings enable trigger listings_guard");
+
   // Seeded rows were inserted at "now"; backdate updated_at to match publish times.
   // The updated_at trigger would stamp "now", so switch it off for this one statement.
   await pg.exec(`

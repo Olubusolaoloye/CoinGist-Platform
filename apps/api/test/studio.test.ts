@@ -209,3 +209,43 @@ describe("authors over HTTP", () => {
     expect((await call("PUT", `/v1/studio/posts/${post.id}/author`, users.editor, { authorId: users.reader.id })).status).toBe(409);
   });
 });
+
+describe("events and opportunities over HTTP", () => {
+  const soon = new Date(Date.now() + 5 * 86_400_000).toISOString();
+  const event = {
+    kind: "event", category: "conference", title: "Lagos Crypto Week", summary: "Three days of talks for builders and founders.",
+    url: "https://lagoscryptoweek.example/", startsAt: soon, location: "Lagos, Nigeria",
+  };
+
+  it("writers draft, editors publish, and the public sees only published listings (cached)", async () => {
+    const draft = await call("POST", "/v1/studio/listings", users.writer, event);
+    expect(draft.status).toBe(201);
+    const { listing } = (await draft.json()) as { listing: { id: string; slug: string; status: string } };
+    expect(listing).toMatchObject({ slug: "lagos-crypto-week", status: "draft" });
+    expect((await call("PUT", `/v1/studio/listings/${listing.id}`, users.writer, { ...event, status: "published" })).status).toBe(403);
+    expect((await app.request("/v1/public/listings/event/lagos-crypto-week")).status).toBe(404);
+
+    expect((await call("PUT", `/v1/studio/listings/${listing.id}`, users.editor, { ...event, status: "published" })).status).toBe(200);
+    const pub = await app.request("/v1/public/listings?kind=event");
+    expect(pub.headers.get("cache-control")).toContain("s-maxage");
+    expect(((await pub.json()) as { items: Array<{ slug: string }> }).items.map((i) => i.slug)).toContain("lagos-crypto-week");
+    const sitemap = (await (await app.request("/v1/public/sitemap")).json()) as { listings: Array<{ slug: string }> };
+    expect(sitemap.listings.map((s) => s.slug)).toContain("lagos-crypto-week");
+  });
+
+  it("validates input and keeps readers out of Studio", async () => {
+    expect((await call("POST", "/v1/studio/listings", users.editor, { ...event, url: "http://insecure.example" })).status).toBe(400);
+    expect((await call("POST", "/v1/studio/listings", users.editor, { ...event, startsAt: "" })).status).toBe(400);
+    expect((await call("POST", "/v1/studio/listings", users.editor, { ...event, kind: "opportunity" })).status).toBe(400);
+    expect((await call("GET", "/v1/studio/listings", users.reader)).status).toBe(403);
+    expect((await app.request("/v1/public/listings?kind=event&scope=open")).status).toBe(400);
+  });
+
+  it("an opportunity needs the safety checklist before it goes live", async () => {
+    const body = { kind: "opportunity", category: "airdrop", title: "Testnet airdrop", summary: "Points for using the testnet before the deadline.", url: "https://project.example/airdrop" };
+    const made = await call("POST", "/v1/studio/listings", users.editor, body);
+    const { listing } = (await made.json()) as { listing: { id: string } };
+    expect((await call("PUT", `/v1/studio/listings/${listing.id}`, users.editor, { ...body, status: "published" })).status).toBe(409);
+    expect((await call("PUT", `/v1/studio/listings/${listing.id}`, users.editor, { ...body, status: "published", safetyChecked: true })).status).toBe(200);
+  });
+});

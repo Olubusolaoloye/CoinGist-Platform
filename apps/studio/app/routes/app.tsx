@@ -49,6 +49,7 @@ const ICONS = {
   images: "M4 5h16v14H4zM4 16l5-5 4 4 3-3 4 4M15 9h.01",
   author: "M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c1-4 4.2-6 8-6s7 2 8 6",
   comments: "M4 5h16v11H9l-5 4z",
+  calendar: "M4 6h16v14H4zM4 10h16M8 3v4M16 3v4",
 } as const;
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -67,7 +68,10 @@ const item = ({ isActive }: { isActive: boolean }) =>
 type Link = { to: string; label: string; icon: keyof typeof ICONS; end?: boolean };
 
 function navFor(role: Role, userId: string): Array<{ title: string | null; links: Link[] }> {
-  const work: Link[] = [{ to: "/posts", label: "Stories", icon: "board", end: true }];
+  const work: Link[] = [
+    { to: "/posts", label: "Stories", icon: "board", end: true },
+    { to: "/listings", label: "Events & opportunities", icon: "calendar" },
+  ];
   if (hasAtLeast(role, "editor")) {
     work.unshift({ to: "/dashboard", label: "Dashboard", icon: "dashboard" });
     work.push(

@@ -26,6 +26,8 @@ export function SiteFooter({ categories }: { categories: Category[] }) {
             <li><Link to="/gist" className={item}>Gist</Link></li>
             <li><Link to="/learn" className={item}>Learn</Link></li>
             <li><Link to="/africa" className={item}>Africa</Link></li>
+            <li><Link to="/events" className={item}>Events</Link></li>
+            <li><Link to="/opportunities" className={item}>Airdrops &amp; opportunities</Link></li>
             <li><Link to="/search" className={item}>Search</Link></li>
           </ul>
         </nav>
