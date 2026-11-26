@@ -3,13 +3,13 @@ import type { Route } from "./+types/privacy";
 import { Contact } from "~/components/ContactLine";
 import { ProsePage } from "~/components/ProsePage";
 import { cached } from "~/lib/api.server";
-import { contactEmails, siteConfig } from "~/lib/config.server";
+import { adsenseConfig, contactEmails, siteConfig } from "~/lib/config.server";
 import { passLoaderHeaders } from "~/lib/headers";
 
 export const headers = passLoaderHeaders;
 
 export function loader() {
-  return cached({ site: siteConfig(), email: contactEmails().general });
+  return cached({ site: siteConfig(), email: contactEmails().general, googleAds: adsenseConfig() !== null });
 }
 
 const INTRO = "What we collect, why, who helps us process it, and how to get it changed or deleted.";
@@ -27,14 +27,14 @@ export function meta({ data }: Route.MetaArgs) {
 
 // Draft describing how the platform actually handles data. Have it reviewed by a lawyer before launch.
 export default function Privacy({ loaderData }: Route.ComponentProps) {
-  const { email } = loaderData;
+  const { email, googleAds } = loaderData;
   return (
     <ProsePage title="Privacy policy" intro={INTRO} path="/privacy">
       <h2>Reading the site</h2>
       <p>
         You can read CoinGist without an account. We count visits with Plausible Analytics, which doesn&rsquo;t use cookies or
-        collect personal data; we see totals such as page views and which countries readers come from. We don&rsquo;t use
-        third-party advertising trackers.
+        collect personal data; we see totals such as page views and which countries readers come from.
+        {googleAds ? " Some ad spaces show ads from Google (see Ads and sponsored content)." : " We don\u2019t use third-party advertising trackers."}
       </p>
       <h2>Newsletters</h2>
       <p>
@@ -61,9 +61,22 @@ export default function Privacy({ loaderData }: Route.ComponentProps) {
         <li><strong>theme</strong>: remembers light or dark mode, if you choose one.</li>
         <li><strong>Sign-in cookies</strong> (only if you sign in): keep you signed in. One of them, <strong>cg_signed_in</strong>, holds no personal data; it just tells the page to show your account link.</li>
       </ul>
-      <p>We don&rsquo;t use cookies for advertising or cross-site tracking.</p>
+      {googleAds ? (
+        <p>Google sets its own cookies when it shows an ad (see below). We don&rsquo;t set any advertising cookies ourselves.</p>
+      ) : (
+        <p>We don&rsquo;t use cookies for advertising or cross-site tracking.</p>
+      )}
       <h2>Ads and sponsored content</h2>
-      <p>When you click an ad we count the click for the sponsor&rsquo;s report. The count isn&rsquo;t linked to you.</p>
+      <p>When you click an ad we sold directly, we count the click for the sponsor&rsquo;s report. The count isn&rsquo;t linked to you.</p>
+      {googleAds ? (
+        <p>
+          Ad spaces we haven&rsquo;t sold may show ads from Google AdSense. Google and its partners use cookies to show ads,
+          including ads based on your visits to this and other sites, and to measure them. In the EU, UK and Switzerland
+          Google asks for your consent first. You can turn off personalised ads in{" "}
+          <a href="https://adssettings.google.com" rel="noopener">Google&rsquo;s ad settings</a>, and read{" "}
+          <a href="https://policies.google.com/technologies/partner-sites" rel="noopener">how Google uses data from sites that use its services</a>.
+        </p>
+      ) : null}
       <h2>Security and retention</h2>
       <p>
         Data is stored with access limited to the staff who need it, and every staff account uses two-factor sign-in. We keep

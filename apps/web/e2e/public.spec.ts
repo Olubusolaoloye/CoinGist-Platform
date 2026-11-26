@@ -646,6 +646,14 @@ test.describe("events and opportunities", () => {
     await expect(page).toHaveURL("/live");
   });
 
+  test("Google AdSense stays off until it's configured: no ads.txt, no Google script", async ({ page, request }) => {
+    expect((await request.get("/ads.txt")).status()).toBe(404);
+    await page.goto("/");
+    await expect(page.locator('script[src*="googlesyndication"]')).toHaveCount(0);
+    await expect(page.locator("ins.adsbygoogle")).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "From CoinGist" })).toContainText("Get the Daily Gist newsletter");
+  });
+
   test("the site is installable: manifest, icons and service worker", async ({ page, request }) => {
     await page.goto("/");
     await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");

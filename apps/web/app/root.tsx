@@ -17,7 +17,7 @@ import { PriceTicker } from "./components/PriceTicker";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
-import { analyticsConfig, isDemo, siteConfig } from "./lib/config.server";
+import { adsenseConfig, analyticsConfig, isDemo, siteConfig } from "./lib/config.server";
 import { HIDDEN_NAV_TOPICS } from "./lib/format";
 import { readTheme } from "./lib/theme.server";
 import { useNonce } from "./lib/nonce";
@@ -44,6 +44,8 @@ export async function loader({ request }: Route.LoaderArgs) {
     theme: readTheme(request),
     demo: isDemo(),
     analytics: analytics ? { domain: analytics.domain, src: analytics.src } : null,
+    // Publisher and ad unit IDs are public (they appear in every page with ads).
+    adsense: adsenseConfig(),
   });
 }
 
@@ -76,6 +78,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             />
             <script nonce={nonce} defer data-domain={root.analytics.domain} src={root.analytics.src} />
           </>
+        ) : null}
+        {root?.adsense ? (
+          // Google's loader also shows its consent message to readers in the EU, UK and Switzerland.
+          <script
+            nonce={nonce}
+            async
+            crossOrigin="anonymous"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${root.adsense.client}`}
+          />
         ) : null}
       </head>
       <body className="min-h-dvh font-sans antialiased">

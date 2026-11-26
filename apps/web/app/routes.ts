@@ -35,6 +35,7 @@ export default [
   route("terms", "routes/terms.tsx"),
   // Feeds and crawler files (resource routes: no HTML).
   route("robots.txt", "routes/robots[.]txt.ts"),
+  route("ads.txt", "routes/ads[.]txt.ts"),
   route("sitemap.xml", "routes/sitemap[.]xml.ts"),
   route("sitemap-pages.xml", "routes/sitemap-pages[.]xml.ts"),
   route("sitemap-posts.xml", "routes/sitemap-posts[.]xml.ts"),

@@ -48,3 +48,56 @@ export function contactEmails(): { general: string | null; advertising: string |
   const general = process.env["CONTACT_EMAIL"] || null;
   return { general, advertising: process.env["ADVERTISING_EMAIL"] || general };
 }
+
+export type AdSenseSlotKey = "home-banner" | "article-end";
+export interface AdSenseConfig {
+  /** Publisher ID, e.g. ca-pub-1234567890123456. */
+  client: string;
+  /** Ad unit ID per slot. A slot without one never shows AdSense. */
+  slots: Partial<Record<AdSenseSlotKey, string>>;
+}
+
+/**
+ * Google AdSense, shown only in ad slots that have no direct booking. Off unless ADSENSE_CLIENT
+ * is set to a valid publisher ID; each slot also needs its ad unit ID (ADSENSE_SLOT_HOME_BANNER,
+ * ADSENSE_SLOT_ARTICLE_END). Malformed values switch it off rather than break the page.
+ */
+export function adsenseConfig(): AdSenseConfig | null {
+  const client = process.env["ADSENSE_CLIENT"]?.trim();
+  if (!client || !/^ca-pub-\d{10,20}$/.test(client)) return null;
+  const slots: AdSenseConfig["slots"] = {};
+  const env: Record<AdSenseSlotKey, string> = { "home-banner": "ADSENSE_SLOT_HOME_BANNER", "article-end": "ADSENSE_SLOT_ARTICLE_END" };
+  for (const [key, name] of Object.entries(env) as Array<[AdSenseSlotKey, string]>) {
+    const id = process.env[name]?.trim();
+    if (id && /^\d{6,20}$/.test(id)) slots[key] = id;
+  }
+  return { client, slots };
+}
+
+/** Google's hosts for AdSense ads and its consent message, allowed by the CSP only when AdSense is on. */
+export const ADSENSE_HOSTS = {
+  script: [
+    "https://pagead2.googlesyndication.com",
+    "https://partner.googleadservices.com",
+    "https://tpc.googlesyndication.com",
+    "https://www.googletagservices.com",
+    "https://adservice.google.com",
+    "https://fundingchoicesmessages.google.com",
+    "https://*.adtrafficquality.google",
+  ],
+  frame: [
+    "https://googleads.g.doubleclick.net",
+    "https://tpc.googlesyndication.com",
+    "https://*.googlesyndication.com",
+    "https://www.google.com",
+    "https://fundingchoicesmessages.google.com",
+    "https://*.adtrafficquality.google",
+  ],
+  connect: [
+    "https://pagead2.googlesyndication.com",
+    "https://*.google.com",
+    "https://*.adtrafficquality.google",
+    "https://fundingchoicesmessages.google.com",
+    "https://csi.gstatic.com",
+  ],
+} as const;

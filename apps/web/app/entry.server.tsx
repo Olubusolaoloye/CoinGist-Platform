@@ -5,7 +5,7 @@ import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
-import { analyticsConfig, searchIndexing } from "./lib/config.server";
+import { ADSENSE_HOSTS, adsenseConfig, analyticsConfig, searchIndexing } from "./lib/config.server";
 import { assertReaderAuthConfig, readerAuthMode } from "./lib/reader.server";
 
 // Fail fast on a misconfigured deployment (e.g. dev reader sign-in in production).
@@ -24,15 +24,18 @@ export const streamTimeout = 5_000;
 function contentSecurityPolicy(nonce: string, https: boolean): string {
   // Plausible, when configured, loads its script from and reports to its own origin.
   const analytics = analyticsConfig()?.origin ?? "";
+  // AdSense, when configured, needs Google's ad hosts and adds its own inline styles to ads.
+  const ads = adsenseConfig() ? ADSENSE_HOSTS : null;
+  const list = (...parts: Array<string | readonly string[] | undefined>) => parts.flat().filter(Boolean).join(" ");
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' ${analytics}`.trim(),
-    `style-src 'self' 'nonce-${nonce}'`,
+    `script-src ${list("'self'", `'nonce-${nonce}'`, analytics, ads?.script)}`,
+    ads ? "style-src 'self' 'unsafe-inline'" : `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' data: https:",
     "font-src 'self'",
-    `connect-src 'self' ${analytics}`.trim(),
+    `connect-src ${list("'self'", analytics, ads?.connect)}`,
     "media-src 'self' https:",
-    "frame-src 'none'",
+    ads ? `frame-src ${list(ads.frame)}` : "frame-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "object-src 'none'",

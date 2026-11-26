@@ -346,3 +346,11 @@ body {
   header a[href="/"] { transition: transform 0.25s cubic-bezier(0.3, 1.6, 0.5, 1); }
   header a[href="/"]:hover { transform: scale(1.04); }
 }
+
+/* AdSense fallback (see AdSlot): the "Ad" label and the ad only count once Google fills the slot. */
+.ad-box .ad-label { visibility: hidden; }
+.ad-box:has(ins.adsbygoogle[data-ad-status="filled"]) .ad-label { visibility: visible; }
+.ad-box:has(ins.adsbygoogle[data-ad-status="filled"]) .ad-fallback { visibility: hidden; }
+.ad-box ins.adsbygoogle[data-ad-status="unfilled"] { display: none !important; }
+/* A slot with nothing to fall back on folds away when Google has no ad. */
+.ad-box[data-collapse]:has(ins.adsbygoogle[data-ad-status="unfilled"]) { display: none; }
