@@ -94,41 +94,83 @@ export function createInsightsRepository(db: Database): InsightsRepository {
     editorDashboard: (actor, { from, now = new Date() }) =>
       as(actor, async (q) => {
         const start = from ?? weekStart(now);
+        const summaries = (where: string, order: string) =>
+          `(select coalesce(json_agg(x), '[]'::json) from (${STUDIO_SUMMARY_SQL} where ${where} order by ${order} limit 8) x)`;
 
-        const counts = Object.fromEntries(POST_STATUSES.map((s) => [s, 0])) as Record<PostStatus, number>;
-        for (const r of await q.query<{ status: PostStatus; n: number }>(
-          "select status, count(*)::int as n from public.posts group by status",
-        )) counts[r.status] = r.n;
-
-        const summaries = async (where: string, order: string, params: unknown[] = []) =>
-          (await q.query<StudioSummaryRow>(`${STUDIO_SUMMARY_SQL} where ${where} order by ${order} limit 8`, params)).map(toStudioSummary);
-
-        const reviewQueue = await summaries("p.status = 'in_review' and p.author_id <> $1", "p.updated_at asc", [actor.sub]);
-        const readyToSchedule = await summaries("p.status = 'approved'", "p.approved_at asc nulls last");
-        const stalled = await summaries(
-          "p.status in ('draft', 'changes_requested') and p.updated_at < $1::timestamptz - interval '7 days'",
-          "p.updated_at asc",
-          [now.toISOString()],
-        );
-
-        const entries = await q.query<{
-          id: string; title: string; type: PostType; status: "scheduled" | "published"; at: Date;
-          author_id: string; author_name: string | null;
+        // Everything in one statement: one round trip to the database instead of nine.
+        // $1 = the editor, $2 = now, $3 = calendar start, $4 = calendar length in days.
+        const [row] = await q.query<{
+          counts: Array<{ status: PostStatus; n: number }>;
+          review_queue: StudioSummaryRow[];
+          ready_to_schedule: StudioSummaryRow[];
+          stalled: StudioSummaryRow[];
+          entries: Array<{
+            id: string; title: string; type: PostType; status: "scheduled" | "published"; at: string;
+            author_id: string; author_name: string | null;
+          }>;
+          published_by_day: Array<{ date: string; count: number }>;
+          section_mix: Array<{ type: PostType; count: number }>;
+          writers: Array<{
+            id: string; name: string | null; role: Role; drafts: number; in_review: number;
+            changes_requested: number; published_30d: number; last_active_at: string | null;
+          }>;
         }>(
-          `select p.id, p.title, p.type, p.status,
-                  case when p.status = 'scheduled' then p.scheduled_for else p.published_at end as at,
-                  p.author_id, u.name as author_name
-           from public.posts p left join public.users u on u.id = p.author_id
-           where (p.status = 'scheduled' and p.scheduled_for >= $1::date and p.scheduled_for < $1::date + $2::int)
-              or (p.status = 'published' and p.published_at >= $1::date and p.published_at < $1::date + $2::int)
-           order by at`,
-          [start, CALENDAR_DAYS],
+          `select
+             (select coalesce(json_agg(c), '[]'::json)
+                from (select status, count(*)::int as n from public.posts group by status) c) as counts,
+             ${summaries("p.status = 'in_review' and p.author_id <> $1", "p.updated_at asc")} as review_queue,
+             ${summaries("p.status = 'approved'", "p.approved_at asc nulls last")} as ready_to_schedule,
+             ${summaries(
+               "p.status in ('draft', 'changes_requested') and p.updated_at < $2::timestamptz - interval '7 days'",
+               "p.updated_at asc",
+             )} as stalled,
+             (select coalesce(json_agg(e order by e.at), '[]'::json) from (
+                select p.id, p.title, p.type, p.status,
+                       case when p.status = 'scheduled' then p.scheduled_for else p.published_at end as at,
+                       p.author_id, u.name as author_name
+                from public.posts p left join public.users u on u.id = p.author_id
+                where (p.status = 'scheduled' and p.scheduled_for >= $3::date and p.scheduled_for < $3::date + $4::int)
+                   or (p.status = 'published' and p.published_at >= $3::date and p.published_at < $3::date + $4::int)
+             ) e) as entries,
+             (select coalesce(json_agg(d order by d.date), '[]'::json) from (
+                select to_char(d, 'YYYY-MM-DD') as date, count(p.id)::int as count
+                from generate_series(($2::timestamptz at time zone 'UTC')::date - 29,
+                                     ($2::timestamptz at time zone 'UTC')::date, interval '1 day') d
+                left join public.posts p
+                  on p.status = 'published' and (p.published_at at time zone 'UTC')::date = d::date
+                group by d
+             ) d) as published_by_day,
+             (select coalesce(json_agg(m order by m.count desc, m.type), '[]'::json) from (
+                select type, count(*)::int as count from public.posts
+                where status = 'published' and published_at >= $2::timestamptz - interval '30 days'
+                group by type
+             ) m) as section_mix,
+             (select coalesce(json_agg(w order by w.published_30d desc, w.last_active_at desc nulls last, w.name), '[]'::json) from (
+                select u.id, u.name, u.role,
+                       count(p.id) filter (where p.status = 'draft')::int as drafts,
+                       count(p.id) filter (where p.status = 'in_review')::int as in_review,
+                       count(p.id) filter (where p.status = 'changes_requested')::int as changes_requested,
+                       count(p.id) filter (where p.status = 'published'
+                         and p.published_at >= $2::timestamptz - interval '30 days')::int as published_30d,
+                       max(p.updated_at) as last_active_at
+                from public.users u
+                left join public.posts p on p.author_id = u.id
+                where u.role in ('writer', 'editor', 'admin') and u.status = 'active'
+                group by u.id
+                having count(p.id) > 0 or u.role = 'writer'
+             ) w) as writers`,
+          [actor.sub, now.toISOString(), start, CALENDAR_DAYS],
         );
+        const r = row!;
+
+        const counts = Object.fromEntries(POST_STATUSES.map((st) => [st, 0])) as Record<PostStatus, number>;
+        for (const c of r.counts) counts[c.status] = c.n;
+
         const days: CalendarDay[] = Array.from({ length: CALENDAR_DAYS }, (_, i) => ({
           date: ymd(new Date(Date.parse(`${start}T00:00:00Z`) + i * 86_400_000)),
           entries: [] as CalendarEntry[],
         }));
-        for (const e of entries) {
+        for (const e of r.entries) {
           const day = days.find((d) => d.date === ymd(new Date(e.at)));
           day?.entries.push({
             id: e.id, title: e.title, type: e.type, status: e.status, at: iso(e.at),
@@ -136,54 +178,19 @@ export function createInsightsRepository(db: Database): InsightsRepository {
           });
         }
 
-        const publishedByDay = (
-          await q.query<{ date: string; count: number }>(
-            `select to_char(d, 'YYYY-MM-DD') as date, count(p.id)::int as count
-             from generate_series(($1::timestamptz at time zone 'UTC')::date - 29,
-                                  ($1::timestamptz at time zone 'UTC')::date, interval '1 day') d
-             left join public.posts p
-               on p.status = 'published' and (p.published_at at time zone 'UTC')::date = d::date
-             group by d order by d`,
-            [now.toISOString()],
-          )
-        ).map((r) => ({ date: r.date, count: r.count }));
-
-        const sectionMix = await q.query<{ type: PostType; count: number }>(
-          `select type, count(*)::int as count from public.posts
-           where status = 'published' and published_at >= $1::timestamptz - interval '30 days'
-           group by type order by count desc, type`,
-          [now.toISOString()],
-        );
-
-        const writers = (
-          await q.query<{
-            id: string; name: string | null; role: Role; drafts: number; in_review: number;
-            changes_requested: number; published_30d: number; last_active_at: Date | null;
-          }>(
-            `select u.id, u.name, u.role,
-                    count(p.id) filter (where p.status = 'draft')::int as drafts,
-                    count(p.id) filter (where p.status = 'in_review')::int as in_review,
-                    count(p.id) filter (where p.status = 'changes_requested')::int as changes_requested,
-                    count(p.id) filter (where p.status = 'published'
-                      and p.published_at >= $1::timestamptz - interval '30 days')::int as published_30d,
-                    max(p.updated_at) as last_active_at
-             from public.users u
-             left join public.posts p on p.author_id = u.id
-             where u.role in ('writer', 'editor', 'admin') and u.status = 'active'
-             group by u.id
-             having count(p.id) > 0 or u.role = 'writer'
-             order by published_30d desc, last_active_at desc nulls last, u.name`,
-            [now.toISOString()],
-          )
-        ).map((r) => ({
-          id: r.id, name: r.name, role: r.role, drafts: r.drafts, inReview: r.in_review,
-          changesRequested: r.changes_requested, published30d: r.published_30d,
-          lastActiveAt: r.last_active_at ? iso(r.last_active_at) : null,
-        }));
-
         return {
-          counts, reviewQueue, readyToSchedule, stalled,
-          calendar: { from: start, days }, publishedByDay, sectionMix, writers,
+          counts,
+          reviewQueue: r.review_queue.map(toStudioSummary),
+          readyToSchedule: r.ready_to_schedule.map(toStudioSummary),
+          stalled: r.stalled.map(toStudioSummary),
+          calendar: { from: start, days },
+          publishedByDay: r.published_by_day,
+          sectionMix: r.section_mix,
+          writers: r.writers.map((w) => ({
+            id: w.id, name: w.name, role: w.role, drafts: w.drafts, inReview: w.in_review,
+            changesRequested: w.changes_requested, published30d: w.published_30d,
+            lastActiveAt: w.last_active_at ? iso(w.last_active_at) : null,
+          })),
         };
       }),
 

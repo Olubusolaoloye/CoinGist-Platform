@@ -8,7 +8,8 @@ const EnvSchema = z
     /** Legacy HS256 secret. If unset, tokens are verified against the project's JWKS. */
     SUPABASE_JWT_SECRET: z.string().min(32).optional(),
     SITE_URL: z.string().url().default("http://localhost:5173"),
-    NEWSLETTER_PROVIDER: z.enum(["beehiiv", "dev"]).default("beehiiv"),
+    /** "off": sign-ups are kept in our database only, until Beehiiv is set up. */
+    NEWSLETTER_PROVIDER: z.enum(["beehiiv", "dev", "off"]).default("beehiiv"),
     BEEHIIV_API_KEY: z.string().min(1).optional(),
     BEEHIIV_PUBLICATION_ID: z.string().min(1).optional(),
     /** Svix signing secret from Beehiiv's webhook settings (whsec_...). */
@@ -25,6 +26,10 @@ const EnvSchema = z
       .default("")
       .transform((s) => s.split(",").map((u) => u.trim()).filter(Boolean))
       .pipe(z.array(z.string().url().startsWith("https://", "Feeds must use https"))),
+    /** Price ticker source: CoinGecko (default), built-in sample data, or off. */
+    PRICES_PROVIDER: z.enum(["coingecko", "sample", "off"]).default("coingecko"),
+    COINGECKO_API_KEY: z.string().min(1).optional(),
+    COINGECKO_BASE_URL: z.string().url().optional(),
     CORS_ORIGINS: z
       .string()
       .default("")

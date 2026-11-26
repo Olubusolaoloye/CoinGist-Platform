@@ -64,6 +64,22 @@ describe("editor dashboard", () => {
     expect(d.writers[0]!.id).toBe(writer.id); // most published first
   });
 
+  it("keeps each list in order: the review queue is oldest first", async () => {
+    const ids: string[] = [];
+    for (const [title, hoursAgo] of [["Newest", 1], ["Oldest", 30], ["Middle", 10]] as const) {
+      const id = await insertPost(t.pg, { authorId: writer2.id, status: "in_review", title });
+      // Bypass the updated_at trigger so the story looks hoursAgo old.
+      await t.pg.exec("set session_replication_role = replica");
+      await t.pg.query("update public.posts set updated_at = now() - make_interval(hours => $2) where id = $1", [id, hoursAgo]);
+      await t.pg.exec("set session_replication_role = origin");
+      ids.push(id);
+    }
+    const d = await r.editorDashboard(editor.claims, {});
+    const titles = d.reviewQueue.map((p) => p.title).filter((x) => ["Newest", "Oldest", "Middle"].includes(x));
+    expect(titles).toEqual(["Oldest", "Middle", "Newest"]);
+    await t.pg.query("delete from public.posts where id = any($1)", [ids]);
+  });
+
   it("pages the calendar from any date", async () => {
     const d = await r.editorDashboard(editor.claims, { from: "2026-01-05" });
     expect(d.calendar.days[0]!.date).toBe("2026-01-05");

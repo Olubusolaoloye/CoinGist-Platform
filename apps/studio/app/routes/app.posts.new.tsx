@@ -8,7 +8,7 @@ import { studioHeaders } from "~/lib/headers";
 export const headers = studioHeaders;
 
 export function meta() {
-  return [{ title: "New post | CoinGist Studio" }];
+  return [{ title: "New story | CoinGist Studio" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -40,7 +40,7 @@ export default function NewPost({ loaderData, actionData }: Route.ComponentProps
   const busy = useNavigation().state !== "idle";
   return (
     <main className="mx-auto max-w-xl px-4 py-10">
-      <h1 className="font-display text-3xl font-extrabold">New post</h1>
+      <h1 className="font-display text-3xl font-extrabold">New story</h1>
       <Form method="post" className="mt-6 space-y-5">
         <div>
           <label htmlFor="title" className="label">Headline</label>

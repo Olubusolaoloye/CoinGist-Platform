@@ -1,15 +1,19 @@
+import "./lib/production.server";
 import { randomBytes } from "node:crypto";
 import { PassThrough } from "node:stream";
 import { createReadableStreamFromReadable } from "@react-router/node";
 import { isbot } from "isbot";
 import { renderToPipeableStream } from "react-dom/server";
 import { ServerRouter, type EntryContext } from "react-router";
-import { analyticsConfig } from "./lib/config.server";
+import { ADSENSE_HOSTS, adsenseConfig, analyticsConfig, searchIndexing } from "./lib/config.server";
 import { assertReaderAuthConfig, readerAuthMode } from "./lib/reader.server";
 
 // Fail fast on a misconfigured deployment (e.g. dev reader sign-in in production).
 assertReaderAuthConfig();
 import { NonceContext } from "./lib/nonce";
+import { initMonitoring, reportError } from "./lib/monitoring.server";
+
+initMonitoring("web");
 
 export const streamTimeout = 5_000;
 
@@ -20,15 +24,18 @@ export const streamTimeout = 5_000;
 function contentSecurityPolicy(nonce: string, https: boolean): string {
   // Plausible, when configured, loads its script from and reports to its own origin.
   const analytics = analyticsConfig()?.origin ?? "";
+  // AdSense, when configured, needs Google's ad hosts and adds its own inline styles to ads.
+  const ads = adsenseConfig() ? ADSENSE_HOSTS : null;
+  const list = (...parts: Array<string | readonly string[] | undefined>) => parts.flat().filter(Boolean).join(" ");
   return [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}' ${analytics}`.trim(),
-    `style-src 'self' 'nonce-${nonce}'`,
+    `script-src ${list("'self'", `'nonce-${nonce}'`, analytics, ads?.script)}`,
+    ads ? "style-src 'self' 'unsafe-inline'" : `style-src 'self' 'nonce-${nonce}'`,
     "img-src 'self' data: https:",
     "font-src 'self'",
-    `connect-src 'self' ${analytics}`.trim(),
+    `connect-src ${list("'self'", analytics, ads?.connect)}`,
     "media-src 'self' https:",
-    "frame-src 'none'",
+    ads ? `frame-src ${list(ads.frame)}` : "frame-src 'none'",
     "frame-ancestors 'none'",
     "base-uri 'none'",
     "object-src 'none'",
@@ -47,13 +54,16 @@ function applyDocumentHeaders(headers: Headers, status: number, nonce: string, r
     headers.set("Content-Security-Policy", contentSecurityPolicy(nonce, https));
   }
   // Never let a CDN cache an error page (a transient 404/502 would stick for every reader).
-  if (status >= 400) headers.set("Cache-Control", "no-store");
+  if (status >= 400) {
+    headers.set("Cache-Control", "no-store");
+    headers.delete("Netlify-CDN-Cache-Control");
+  }
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Frame-Options", "DENY");
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), interest-cohort=()");
   // Preview deploys carry fake stories: keep them out of search engines.
-  if (process.env["DEMO_MODE"] === "true") headers.set("X-Robots-Tag", "noindex, nofollow");
+  if (!searchIndexing()) headers.set("X-Robots-Tag", "noindex, nofollow");
 }
 
 export default function handleRequest(
@@ -114,4 +124,10 @@ export default function handleRequest(
       },
     );
   });
+}
+
+/** Unexpected loader/action/render errors (not aborted requests) are reported. */
+export function handleError(error: unknown, { request }: { request: Request }) {
+  if (request.signal.aborted) return;
+  reportError(error, { url: new URL(request.url).pathname, method: request.method });
 }

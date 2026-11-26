@@ -101,15 +101,35 @@ describe("follows and the feed", () => {
     expect(feed.items.map((s) => s.id)).not.toContain(draft);
   });
 
-  it("can't follow arbitrary ids, and clear() forgets everything", async () => {
+  it("can't follow arbitrary ids", async () => {
     await expect(
       t.db.asUser(reader.claims, (q) =>
         q.query("insert into public.follows (user_id, target_type, target_id) values ($1, 'author', $2)", [reader.id, reader2.id]),
       ),
     ).rejects.toThrow(/nothing to follow/);
-    await r.follow(reader.claims, { type: "tag", slug: "p2p" });
-    await r.clear(reader.claims);
-    expect(await r.state(reader.claims, null)).toEqual({ bookmarked: false, follows: [] });
+  });
+
+  it("deactivating keeps everything; signing in again brings it all back", async () => {
+    const x = await t.createUser();
+    await r.follow(x.claims, { type: "tag", slug: "p2p" });
+    await r.deactivate(x.claims);
+    const row = await t.pg.query<{ status: string }>("select status from public.users where id = $1", [x.id]);
+    expect(row.rows[0]!.status).toBe("deactivated");
+    expect((await t.pg.query("select 1 from public.follows where user_id = $1", [x.id])).rows).toHaveLength(1); // kept
+    await expect(r.deactivate(x.claims)).rejects.toMatchObject({ kind: "conflict" });
+    expect(await r.reactivate(x.claims)).toBe(true);
+    expect(await r.reactivate(x.claims)).toBe(false);
+    expect((await r.state(x.claims, null)).follows).toHaveLength(1);
+    const log = await t.pg.query<{ action: string }>("select action from public.audit_logs where entity_id = $1 order by created_at", [x.id]);
+    expect(log.rows.map((l) => l.action)).toEqual(["user.deactivated", "user.reactivated"]);
+  });
+
+  it("staff can't deactivate themselves, and suspended accounts aren't reactivated by signing in", async () => {
+    await expect(r.deactivate(editor.claims)).rejects.toMatchObject({ kind: "conflict", message: expect.stringContaining("admin") });
+    const s = await t.createUser();
+    await t.pg.query("update public.users set status = 'suspended' where id = $1", [s.id]);
+    expect(await r.reactivate(s.claims)).toBe(false);
+    expect((await t.pg.query<{ status: string }>("select status from public.users where id = $1", [s.id])).rows[0]!.status).toBe("suspended");
   });
 
   it("caps follows at 100", async () => {

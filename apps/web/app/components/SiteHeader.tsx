@@ -4,16 +4,16 @@ import type { Category } from "@coingist/types";
 import { useSignedIn } from "./ReaderButtons";
 import { ThemeToggle, type ThemePref } from "./ThemeToggle";
 import { Wordmark } from "./Wordmark";
+import { inLearnEarn, LEARN_EARN_LINKS } from "~/lib/format";
 
 const SECTIONS = [
   { to: "/news", label: "News" },
   { to: "/gist", label: "Gist" },
-  { to: "/learn", label: "Learn" },
-  { to: "/africa", label: "Africa" },
+  { to: "/live", label: "Live" },
 ];
 
 const navClass = ({ isActive }: { isActive: boolean }) =>
-  `rounded-md px-3 py-2 font-semibold hover:bg-line ${isActive ? "text-link underline decoration-2 underline-offset-8" : ""}`;
+  `rounded-full px-3.5 py-2 font-semibold hover:bg-line/70 ${isActive ? "bg-night text-night-ink hover:bg-night" : ""}`;
 
 export function SiteHeader({ categories, theme }: { categories: Category[]; theme: ThemePref }) {
   const menu = useRef<HTMLDetailsElement>(null);
@@ -22,13 +22,15 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
     if (menu.current) menu.current.open = false;
   }, [location.pathname]);
 
-  const strip = categories.filter((c) => c.slug !== "africa");
+  const strip = categories;
+  const earnActive = inLearnEarn(location.pathname);
   // Personal links are decided in the browser, so this cached header is the same for everyone.
   const signedIn = useSignedIn();
 
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3">
+    <header className="sticky top-0 z-40 px-2 pt-2 sm:px-4 sm:pt-3">
+      <div className="glass glass-strong mx-auto max-w-6xl rounded-2xl">
+      <div className="flex items-center gap-2 px-3 py-2 sm:px-4">
         <Link to="/" className="mr-auto rounded-md py-1" aria-label="CoinGist home">
           <Wordmark />
         </Link>
@@ -36,11 +38,37 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
           <ul className="flex items-center gap-1">
             {SECTIONS.map((s) => (
               <li key={s.to}>
-                <NavLink to={s.to} className={navClass}>
+                <NavLink to={s.to} className={(a) => `${navClass(a)} inline-flex items-center gap-1.5`}>
+                  {s.to === "/live" ? <span aria-hidden="true" className="size-2 rounded-full bg-bad" /> : null}
                   {s.label}
                 </NavLink>
               </li>
             ))}
+            {/* Opens on hover or keyboard focus; the link itself goes to the Learn & Earn hub. */}
+            <li className="group relative">
+              <Link
+                to="/learn-earn"
+                aria-current={location.pathname === "/learn-earn" ? "page" : undefined}
+                className={`${navClass({ isActive: earnActive })} inline-flex items-center gap-1`}
+              >
+                Learn &amp; Earn
+                <svg viewBox="0 0 24 24" className="size-4 transition-transform group-hover:rotate-180 group-focus-within:rotate-180" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </Link>
+              <div className="invisible absolute top-full right-0 z-40 pt-2 opacity-0 transition-opacity duration-150 group-focus-within:visible group-focus-within:opacity-100 group-hover:visible group-hover:opacity-100">
+                <ul aria-label="Learn and Earn" className="w-80 rounded-2xl border border-line bg-surface p-2 shadow-xl">
+                  {LEARN_EARN_LINKS.map((l) => (
+                    <li key={l.to}>
+                      <NavLink to={l.to} className={({ isActive }) => `block rounded-xl px-3 py-2.5 hover:bg-line/70 ${isActive ? "bg-line/70" : ""}`}>
+                        <span className="block font-semibold">{l.label}</span>
+                        <span className="block text-sm text-muted">{l.blurb}</span>
+                      </NavLink>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </li>
           </ul>
         </nav>
         <Link
@@ -91,7 +119,19 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
                 </li>
               ))}
             </ul>
-            <Link to="/newsletter" className="mt-2 block rounded-md bg-gist px-2 py-2 font-semibold text-gist-ink">
+            <p className="mt-4 text-sm font-semibold text-muted">
+              <Link to="/learn-earn">Learn &amp; Earn</Link>
+            </p>
+            <ul className="mt-1 grid gap-1">
+              {LEARN_EARN_LINKS.map((l) => (
+                <li key={l.to}>
+                  <Link to={l.to} className="block rounded-md px-2 py-2 font-semibold hover:bg-line">
+                    {l.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Link to="/newsletter" className="mt-3 block rounded-md bg-gist px-2 py-2 font-semibold text-gist-ink">
               Get the newsletter
             </Link>
             {signedIn ? (
@@ -115,8 +155,8 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
           </div>
         </details>
       </div>
-      <nav aria-label="Topics" className="border-t border-line">
-        <ul className="no-scrollbar mx-auto flex max-w-6xl gap-1 overflow-x-auto px-2 py-1.5 text-sm whitespace-nowrap">
+      <nav aria-label="Topics" className="border-t border-line/60">
+        <ul className="no-scrollbar flex gap-1 overflow-x-auto px-2 py-1.5 text-sm whitespace-nowrap">
           {strip.map((c) => (
             <li key={c.slug}>
               <NavLink
@@ -131,6 +171,7 @@ export function SiteHeader({ categories, theme }: { categories: Category[]; them
           ))}
         </ul>
       </nav>
+      </div>
     </header>
   );
 }

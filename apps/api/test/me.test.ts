@@ -63,10 +63,76 @@ describe("reader account API", () => {
     expect(await (await call("GET", "/follows", reader)).json()).toEqual({ follows: [] });
   });
 
-  it("clears all reading data", async () => {
-    await call("PUT", `/bookmarks/${postId}`, reader);
-    await call("PUT", "/follows", reader, { type: "author", slug: "ama-writer" });
-    expect((await call("DELETE", "/data", reader)).status).toBe(204);
-    expect(await (await call("GET", "/state", reader)).json()).toEqual({ bookmarked: false, follows: [] });
+  it("deactivates an account (keeping its data) and reactivates it on the next sign-in", async () => {
+    const leaver = await t.createUser();
+    await call("PUT", `/bookmarks/${postId}`, leaver);
+    expect((await call("POST", "/deactivate", leaver)).status).toBe(204);
+    expect((await call("GET", "/state", leaver)).status).toBe(403); // locked out while deactivated
+    expect((await call("POST", "/deactivate", writer)).status).toBe(409); // staff: an admin manages it
+    const back = await call("POST", "/reactivate", leaver);
+    expect(await back.json()).toEqual({ reactivated: true });
+    expect(await (await call("GET", `/state?postId=${postId}`, leaver)).json()).toMatchObject({ bookmarked: true });
+    expect(await (await call("POST", "/reactivate", leaver)).json()).toEqual({ reactivated: false });
+    expect((await call("POST", "/reactivate", null)).status).toBe(401);
+  });
+});
+
+describe("comments and likes over HTTP", () => {
+  const engagement = async () => (await (await app.request(`/v1/public/posts/${postId}/engagement`)).json()) as {
+    likes: number;
+    comments: Array<{ id: string; body: string; parentId: string | null; likes: number; author: { name: string } | null }>;
+  };
+
+  it("anyone reads the thread (never cached); signed-in readers comment, reply, like and set their name", async () => {
+    const pub = await app.request(`/v1/public/posts/${postId}/engagement`);
+    expect(pub.status).toBe(200);
+    expect(pub.headers.get("cache-control")).toBe("no-store");
+    expect(pub.headers.get("netlify-cdn-cache-control")).toBeNull();
+
+    expect((await call("PATCH", "/profile", reader, { name: "Kofi" })).status).toBe(204);
+    const made = await call("POST", `/posts/${postId}/comments`, reader, { body: "Useful, thanks" });
+    expect(made.status).toBe(201);
+    const { id } = (await made.json()) as { id: string };
+    expect((await call("POST", `/posts/${postId}/comments`, other, { body: "Same here", parentId: id })).status).toBe(201);
+    expect(await (await call("PUT", `/posts/${postId}/like`, other)).json()).toEqual({ likes: 1 });
+    expect(await (await call("PUT", `/comments/${id}/like`, other)).json()).toEqual({ likes: 1 });
+
+    const thread = await engagement();
+    expect(thread.likes).toBe(1);
+    expect(thread.comments.map((c) => [c.author?.name, c.body, c.parentId])).toEqual([
+      ["Kofi", "Useful, thanks", null],
+      [expect.any(String), "Same here", id],
+    ]);
+    expect(await (await call("GET", `/posts/${postId}/engagement`, other)).json()).toEqual({ likedPost: true, likedCommentIds: [id] });
+
+    expect((await call("PATCH", `/comments/${id}`, reader, { body: "Useful, thank you" })).status).toBe(204);
+    expect((await call("PATCH", `/comments/${id}`, other, { body: "hijack" })).status).toBe(404);
+    expect((await call("POST", `/comments/${id}/report`, other, { reason: "test" })).status).toBe(204);
+  });
+
+  it("needs sign-in to write, and validates input", async () => {
+    expect((await call("POST", `/posts/${postId}/comments`, null, { body: "hi" })).status).toBe(401);
+    expect((await call("PUT", `/posts/${postId}/like`, null)).status).toBe(401);
+    expect((await call("POST", `/posts/${postId}/comments`, reader, { body: "" })).status).toBe(400);
+    expect((await call("POST", `/posts/${postId}/comments`, reader, { body: "x".repeat(2001) })).status).toBe(400);
+    expect((await call("PATCH", "/profile", reader, { name: "" })).status).toBe(400);
+  });
+
+  it("editors moderate in Studio; readers and writers can't", async () => {
+    const studio = async (method: string, path: string, who: TestUser, body?: unknown) =>
+      app.request(`/v1/studio${path}`, {
+        method,
+        headers: { ...bearer(await tokenFor(who, { aal: "aal2" })), ...(body ? { "content-type": "application/json" } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+      });
+    const list = await studio("GET", "/reader-comments?filter=reported", editor);
+    expect(list.status).toBe(200);
+    const { comments } = (await list.json()) as { comments: Array<{ id: string; reports: number }> };
+    const reported = comments[0]!;
+    expect(reported.reports).toBe(1);
+    expect((await studio("PATCH", `/reader-comments/${reported.id}`, writer, { hidden: true })).status).toBe(403);
+    expect((await studio("PATCH", `/reader-comments/${reported.id}`, editor, { hidden: true })).status).toBe(204);
+    expect((await engagement()).comments.find((c) => c.id === reported.id)?.body ?? "").toBe(""); // hidden (placeholder: it has a reply)
+    expect((await studio("DELETE", `/reader-comments/${reported.id}`, editor)).status).toBe(204);
   });
 });

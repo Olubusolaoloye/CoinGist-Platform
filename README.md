@@ -249,6 +249,30 @@ writes is saved, published or posted on its own, and stories still go through re
   posts are same-origin only, and sign-in attempts are rate limited per IP. Buttons work with
   JavaScript; the account page's controls also work without it.
 
+## Launch readiness
+
+- **Pages:** `/advertise` (what we sell and the vetting standards), `/privacy` (what the platform
+  actually collects: newsletter, reader accounts, Plausible, cookies) and `/terms`. They're drafts:
+  have the privacy policy and terms reviewed by a lawyer, and name the publishing entity, before
+  launch. Contact addresses come from `CONTACT_EMAIL` / `ADVERTISING_EMAIL`.
+- **Price ticker:** BTC, ETH, USDT, USDC, SOL and BNB in US dollars with the 24-hour change,
+  under the header on every page. The API fetches CoinGecko server-side, caches for a minute,
+  serves the last good prices for up to 10 minutes if CoinGecko is down, and the site hides the
+  strip rather than failing. Local, test and preview builds use labelled sample prices.
+- **Monitoring:** set `SENTRY_DSN` to report unexpected server errors from the API, web and Studio
+  to Sentry. No cookies, auth headers, bodies, query strings or AI text are sent.
+- **CI and updates:** GitHub Actions runs typecheck, unit tests, build and both Playwright suites
+  on every pull request; Dependabot opens weekly grouped dependency updates.
+
+## Supabase project
+
+All migrations in `supabase/migrations` are applied to the project in order. Newer Supabase projects
+don't grant the API roles any access to new tables, so `..._explicit_grants.sql` grants exactly what
+each role needs (row-level security still decides which rows); the local test database mirrors
+those stricter defaults. `..._advisor_hardening.sql` addresses the security advisor's findings.
+What the advisor still lists is intentional: the two byline/sponsor directory views, the public ad
+click counter, and the staff RPCs, each of which checks the caller's role and MFA itself.
+
 ## Swapping the database (e.g. Convex)
 
 The API depends only on the `Repositories` interface in `packages/db/src/repositories.ts`.

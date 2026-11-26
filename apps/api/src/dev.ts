@@ -12,6 +12,7 @@ import { createApp } from "./app.js";
 import { createClaudeProvider } from "./ai/claude.js";
 import { createOfflineProvider } from "./ai/offline.js";
 import { DEFAULT_DAILY_LIMITS } from "./routes/ai.js";
+import { cachedTicker, createCoinGeckoProvider, createSamplePriceProvider } from "./prices/provider.js";
 import { createTokenVerifier } from "./auth.js";
 import { createDevNewsletterProvider } from "./newsletter/dev-provider.js";
 import { syncPending } from "./newsletter/sync.js";
@@ -37,6 +38,8 @@ const app = createApp({
   newsletter,
   // Lets you try the webhook locally with a Svix-signed request (see README).
   newsletterWebhookSecret: DEV_WEBHOOK_SECRET,
+  // Sample prices unless PRICES_PROVIDER=coingecko (keeps tests and offline work deterministic).
+  prices: cachedTicker(process.env["PRICES_PROVIDER"] === "coingecko" ? createCoinGeckoProvider() : createSamplePriceProvider()),
   // Real Claude if you set ANTHROPIC_API_KEY; otherwise the offline sample generator.
   ai: {
     provider: process.env["ANTHROPIC_API_KEY"]

@@ -1,26 +1,11 @@
 import { serve } from "@hono/node-server";
-import { createPgRepositories } from "@coingist/db";
-import { createPgDatabase } from "@coingist/db/pg";
-import { createApp } from "./app.js";
-import { createTokenVerifier } from "./auth.js";
 import { loadEnv } from "./env.js";
-import { newsletterProviderFromEnv } from "./newsletter/from-env.js";
-import { aiDepsFromEnv } from "./ai/from-env.js";
+import { initMonitoring } from "./monitoring.js";
+import { createProductionApi } from "./server.js";
 
 const env = loadEnv();
-const db = createPgDatabase(env.DATABASE_URL);
-
-const app = createApp({
-  repos: createPgRepositories(db),
-  verifyToken: createTokenVerifier({
-    supabaseUrl: env.SUPABASE_URL,
-    jwtSecret: env.SUPABASE_JWT_SECRET,
-  }),
-  corsOrigins: env.CORS_ORIGINS,
-  newsletter: newsletterProviderFromEnv(env),
-  newsletterWebhookSecret: env.BEEHIIV_WEBHOOK_SECRET,
-  ai: aiDepsFromEnv(env),
-});
+initMonitoring("api");
+const { app, db } = createProductionApi(env);
 
 const server = serve({ fetch: app.fetch, port: env.PORT }, (info) => {
   console.log(`api listening on http://localhost:${info.port}`);

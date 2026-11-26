@@ -124,8 +124,14 @@ test.describe("listings and authors", () => {
   });
 
   test("pages are cacheable at the CDN, errors are not", async ({ request }) => {
-    expect((await request.get("/news")).headers()["cache-control"]).toContain("s-maxage=60");
-    expect((await request.get("/news/unpublished-draft-never-visible")).headers()["cache-control"]).toBe("no-store");
+    const listing = (await request.get("/news")).headers();
+    expect(listing["cache-control"]).toContain("s-maxage=60");
+    // Netlify's shared cache, kept per theme cookie so nobody gets the wrong colour scheme.
+    expect(listing["netlify-cdn-cache-control"]).toBe("public, durable, s-maxage=60, stale-while-revalidate=604800");
+    expect(listing["netlify-vary"]).toBe("query,cookie=theme");
+    const missing = (await request.get("/news/unpublished-draft-never-visible")).headers();
+    expect(missing["cache-control"]).toBe("no-store");
+    expect(missing["netlify-cdn-cache-control"]).toBeUndefined();
   });
 });
 
@@ -135,9 +141,13 @@ test.describe("navigation", () => {
     await page.goto("/");
     const bottom = page.getByRole("navigation", { name: "Primary" });
     await expect(bottom).toBeVisible();
-    await bottom.getByRole("link", { name: "Learn" }).click();
-    await expect(page).toHaveURL("/learn");
-    await expect(bottom.getByRole("link", { name: "Learn" })).toHaveAttribute("aria-current", "page");
+    await expect(bottom.getByRole("link", { name: "Africa" })).toHaveCount(0);
+    await bottom.getByRole("link", { name: "Learn & Earn" }).click();
+    await expect(page).toHaveURL("/learn-earn");
+    await expect(bottom.getByRole("link", { name: "Learn & Earn" })).toHaveAttribute("aria-current", "page");
+    // The tab stays lit inside the group.
+    await page.goto("/opportunities");
+    await expect(bottom.getByRole("link", { name: "Learn & Earn" })).toHaveAttribute("aria-current", "page");
 
     await page.getByLabel("Menu").click();
     await page.getByRole("link", { name: "Security" }).last().click();
@@ -204,17 +214,66 @@ test.describe("theme", () => {
   });
 });
 
-test.describe("home and search", () => {
-  test("hero shows today's gist and the top stories carousel pages", async ({ page, isMobile }) => {
+test.describe("hosting", () => {
+  // Netlify inserts a comment (and line breaks) at the top of <head>. That used to break
+  // hydration on every page (React #418): the page was rebuilt in the browser and taps were lost.
+  test("pages still hydrate and links work when the host injects a comment into <head>", async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (e) => errors.push(e.message));
+    await page.route((url) => url.pathname === "/", async (route) => {
+      const res = await route.fetch();
+      const body = (await res.text()).replace(
+        '<meta charSet="utf-8"/>',
+        '<meta charSet="utf-8"/>\n<!-- This site is hosted on Netlify.\n     Anyone can build and deploy a site like this one. -->',
+      );
+      await route.fulfill({ response: res, body });
+    });
     await page.goto("/");
-    const gist = page.getByRole("complementary", { name: "Today's gist in 30 seconds" });
-    await expect(gist.getByRole("link", { name: "Read the full story" })).toBeVisible();
-    const top = page.getByRole("region", { name: "Top stories" });
-    const slides = top.locator('[aria-roledescription="slide"]');
-    await expect(slides).toHaveCount(4);
-    await expect(top.getByRole("button", { name: "Previous top stories" })).toBeDisabled();
-    await top.getByRole("button", { name: "Next top stories" }).click();
-    await expect(top.getByRole("button", { name: "Previous top stories" })).toBeEnabled();
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("link", { name: "About" }).first().click();
+    await expect(page).toHaveURL(/\/about$/);
+    expect(errors).toEqual([]);
+  });
+});
+
+test.describe("lighter glass", () => {
+  test("phones with 2 GB of memory or less get glass without the live blur", async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, "deviceMemory", { get: () => 2 }));
+    await page.goto("/");
+    await expect(page.locator("html")).toHaveAttribute("data-lite-glass", "");
+    const blur = await page.locator(".glass").first().evaluate((e) => getComputedStyle(e).backdropFilter);
+    expect(blur).toBe("none");
+  });
+
+  test("other devices keep the frosted glass", async ({ page }) => {
+    await page.addInitScript(() => Object.defineProperty(navigator, "deviceMemory", { get: () => 8 }));
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("html")).not.toHaveAttribute("data-lite-glass", "");
+    const blur = await page.locator(".glass").first().evaluate((e) => getComputedStyle(e).backdropFilter);
+    expect(blur).toContain("blur");
+  });
+});
+
+test.describe("home and search", () => {
+  test("spotlight changes story on request, beside today's gist and editors' picks", async ({ page, isMobile }) => {
+    await page.goto("/");
+    const spot = page.getByRole("region", { name: "Spotlight" });
+    const slides = spot.locator('[aria-roledescription="slide"]');
+    expect(await slides.count()).toBeGreaterThan(1);
+    await expect(slides.first()).toHaveAttribute("data-active", "true");
+    // Hidden slides don't download their photo up front (at most the next one is preloaded).
+    const count = await slides.count();
+    if (count > 2) await expect(slides.nth(count - 1).locator("img")).toHaveCount(0);
+    await spot.getByRole("button", { name: /^Story 2 of/ }).click();
+    await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
+    await expect(slides.first()).toHaveAttribute("data-active", "false");
+    const gist = page.getByRole("region", { name: "Today's gist in 30 seconds" });
+    await expect(gist.getByRole("listitem").first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Markets today" })).toBeVisible();
+    // Prices are in US dollars only.
+    await expect(page.getByRole("region", { name: "Markets today" })).not.toContainText("₦");
+    await expect(page.getByRole("region", { name: "Crypto prices" })).not.toContainText("₦");
     if (!isMobile) await expect(page.getByRole("region", { name: "Editors' picks" }).getByRole("listitem")).toHaveCount(5);
   });
 
@@ -379,6 +438,21 @@ test.describe("ads and analytics", () => {
     expect((await request.get("/go/ad/00000000-0000-4000-8000-000000000000", { maxRedirects: 0 })).status()).toBe(404);
   });
 
+  test("an ad keeps its slot's shape, whatever size the image is", async ({ page }) => {
+    await page.goto(ARTICLE);
+    const box = await page.getByRole("complementary", { name: "Advertisement" }).getByRole("link").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width / box!.height).toBeCloseTo(3, 1); // article-end is 1200 × 400
+  });
+
+  test("the advertise page shows every placement and its image size", async ({ page }) => {
+    await page.goto("/advertise");
+    for (const [name, size] of [["Home page banner", "1200 × 250"], ["End of story", "1200 × 400"], ["Newsletter sponsor", "600 × 200"]]) {
+      const card = page.locator("div.glass").filter({ has: page.getByRole("heading", { name: name!, level: 3 }) });
+      await expect(card).toContainText(size!);
+    }
+  });
+
   test("sponsored stories carry no ads", async ({ page }) => {
     await page.goto(SPONSORED);
     await expect(page.getByRole("complementary", { name: "Advertisement" })).toHaveCount(0);
@@ -423,7 +497,7 @@ test.describe("content security policy", () => {
 
 test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
   for (const scheme of ["light", "dark"] as const) {
-    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/search?q=stablecoin", "/does-not-exist"]) {
+    for (const path of ["/", ARTICLE, "/africa", "/author/amara-okafor", SPONSORED, "/newsletter", "/editorial-policy", "/advertise", "/privacy", "/terms", "/search?q=stablecoin", "/events", "/events/lagos-blockchain-summit", "/opportunities", "/opportunities/payments-builder-grant", "/learn-earn", "/live", "/does-not-exist"]) {
       test(`${scheme} ${path}`, async ({ page }) => {
         await page.emulateMedia({ colorScheme: scheme });
         await page.goto(path);
@@ -434,4 +508,209 @@ test.describe("accessibility (axe, WCAG 2.1 AA)", () => {
       });
     }
   }
+});
+
+test.describe("homepage motion", () => {
+  test("spotlight, Just in and the price ticker move on their own, and can be paused", async ({ page }) => {
+    await page.clock.install();
+    await page.goto("/");
+    await page.waitForLoadState("networkidle"); // hydrated: the timers below are the page's own
+    const spot = page.getByRole("region", { name: "Spotlight" });
+    const slides = spot.locator('[aria-roledescription="slide"]');
+    await expect(slides.first()).toHaveAttribute("data-active", "true");
+    await expect(spot.getByRole("button", { name: "Pause spotlight stories" })).toBeEnabled();
+    await page.clock.runFor(7_500);
+    await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
+
+    // Paused: it stays put.
+    await spot.getByRole("button", { name: "Pause spotlight stories" }).click();
+    await page.mouse.move(0, 0); // stop hovering, so only the pause holds it
+    await page.clock.runFor(20_000);
+    await expect(slides.nth(1)).toHaveAttribute("data-active", "true");
+    await expect(spot.getByRole("button", { name: "Play spotlight stories" })).toHaveAttribute("aria-pressed", "true");
+
+    // Just in scrolls along by itself.
+    const justIn = page.getByRole("region", { name: "Just in" }).getByRole("list");
+    const before = await justIn.evaluate((el) => el.scrollLeft);
+    await page.clock.runFor(4_500);
+    await expect.poll(() => justIn.evaluate((el) => el.scrollLeft)).toBeGreaterThan(before);
+    // ...and lines up on the start of a headline, never mid-word (smooth scrolling runs in real time).
+    await expect
+      .poll(() =>
+        justIn.evaluate((el) =>
+          Array.from(el.children).some((li) => Math.abs((li as HTMLElement).offsetLeft - el.scrollLeft) <= 2) ||
+          el.scrollLeft + el.clientWidth >= el.scrollWidth - 2,
+        ),
+      )
+      .toBe(true);
+
+    // The ticker runs as a marquee, with no source line, and pauses on request.
+    const ticker = page.getByRole("region", { name: "Crypto prices" });
+    await expect(ticker).not.toContainText("CoinGecko");
+    await expect(ticker).not.toContainText("may be delayed");
+    const track = ticker.locator(".marquee-track");
+    expect(await track.evaluate((el) => getComputedStyle(el).animationName)).toBe("marquee");
+    await ticker.getByRole("button", { name: "Pause prices" }).click();
+    expect(await track.evaluate((el) => getComputedStyle(el).animationPlayState)).toBe("paused");
+  });
+
+  test("nothing moves for readers who prefer reduced motion", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.clock.install();
+    await page.goto("/");
+    const slides = page.getByRole("region", { name: "Spotlight" }).locator('[aria-roledescription="slide"]');
+    await page.clock.runFor(20_000);
+    await expect(slides.first()).toHaveAttribute("data-active", "true");
+    expect(await page.locator(".marquee-track").evaluate((el) => getComputedStyle(el).animationName)).toBe("none");
+    await expect(page.getByRole("button", { name: "Pause spotlight stories" })).toHaveCount(0);
+  });
+});
+
+test.describe("events and opportunities", () => {
+  test("events: upcoming soonest first, past on its own tab, a detail page with structured data and a calendar file", async ({ page, request }) => {
+    await page.goto("/events");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Events");
+    const titles = await page.getByRole("main").getByRole("heading", { level: 3 }).allInnerTexts();
+    expect(titles).toEqual(["Stablecoins 101 live class (sample)", "Lagos Blockchain Summit (sample)"]);
+    await page.getByRole("link", { name: "Past", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Nairobi crypto meetup (sample)" })).toBeVisible();
+
+    await page.goto("/events/lagos-blockchain-summit");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Lagos Blockchain Summit (sample)");
+    await expect(page.getByText("Lagos, Nigeria")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Official event page/ })).toHaveAttribute("rel", "noopener nofollow");
+    const ld = (await jsonLd(page)).find((d) => d["@type"] === "Event");
+    expect(ld).toMatchObject({ name: "Lagos Blockchain Summit (sample)", location: { "@type": "Place", name: "Lagos, Nigeria" } });
+
+    const ics = await request.get("/events/lagos-blockchain-summit/calendar.ics");
+    expect(ics.headers()["content-type"]).toContain("text/calendar");
+    const body = await ics.text();
+    expect(body).toContain("BEGIN:VEVENT");
+    expect(body).toContain("SUMMARY:Lagos Blockchain Summit (sample)");
+    expect((await request.get("/events/no-such-event")).status()).toBe(404);
+  });
+
+  test("opportunities: open and closed tabs, type filter, safety warning and a checked date", async ({ page }) => {
+    await page.goto("/opportunities");
+    await expect(page.getByRole("complementary", { name: "Stay safe" })).toContainText("Never share your seed phrase");
+    await expect(page.getByRole("heading", { name: "Payments builder grant (sample)" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Testnet points airdrop (sample)" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Closed", exact: true }).click();
+    await expect(page.getByRole("heading", { name: "Testnet points airdrop (sample)" })).toBeVisible();
+    await page.goto("/opportunities?type=airdrop");
+    await expect(page.getByText("No open opportunities right now")).toBeVisible();
+
+    await page.goto("/opportunities/payments-builder-grant");
+    await expect(page.getByText("Up to $10,000")).toBeVisible();
+    await expect(page.getByText(/Checked by the CoinGist editors on/)).toBeVisible();
+    await expect(page.getByRole("link", { name: /Go to the official page/ })).toBeVisible();
+    await page.goto("/opportunities/testnet-points-airdrop");
+    await expect(page.getByText("This opportunity has closed.")).toBeVisible();
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
+
+  test("Learn & Earn groups guides, opportunities and events; Africa and Regulation are out of the menus", async ({ page, isMobile }) => {
+    await page.goto("/learn-earn");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Learn & Earn");
+    const sections = page.getByRole("navigation", { name: "Learn and Earn sections" });
+    for (const name of ["Learn crypto", "Airdrops & opportunities", "Events"]) await expect(sections.getByRole("link", { name: new RegExp(name) })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Airdrops & opportunities" })).toContainText("Payments builder grant (sample)");
+    await expect(page.getByRole("region", { name: "Upcoming events" })).toContainText("Lagos Blockchain Summit (sample)");
+    await expect(page.getByRole("complementary", { name: "Stay safe" })).toBeVisible();
+
+    const header = page.getByRole("banner");
+    await expect(header.getByRole("link", { name: "Africa", exact: true })).toHaveCount(0);
+    await expect(header.getByRole("link", { name: "Regulation", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("contentinfo").getByRole("link", { name: "Regulation", exact: true })).toHaveCount(0);
+    // Old links keep working.
+    await page.goto("/africa");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Africa");
+
+    if (!isMobile) {
+      await page.goto("/");
+      const sectionsNav = page.getByRole("navigation", { name: "Sections", exact: true });
+      await sectionsNav.getByRole("link", { name: "Learn & Earn" }).hover();
+      await sectionsNav.getByRole("link", { name: /Airdrops & opportunities/ }).click();
+      await expect(page).toHaveURL("/opportunities");
+    }
+  });
+
+  test("Live lists every story newest first with times", async ({ page }) => {
+    await page.goto("/live");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Live");
+    const times = await page.locator("main ol time").evaluateAll((els) => els.map((e) => e.getAttribute("datetime")!));
+    expect(times.length).toBeGreaterThan(3);
+    expect([...times].sort().reverse()).toEqual(times);
+    await page.goto("/");
+    await page.getByRole("link", { name: "Just in" }).click();
+    await expect(page).toHaveURL("/live");
+  });
+
+  test("Google AdSense stays off until it's configured: no ads.txt, no Google script", async ({ page, request }) => {
+    expect((await request.get("/ads.txt")).status()).toBe(404);
+    await page.goto("/");
+    await expect(page.locator('script[src*="googlesyndication"]')).toHaveCount(0);
+    await expect(page.locator("ins.adsbygoogle")).toHaveCount(0);
+    await expect(page.getByRole("complementary", { name: "From CoinGist" })).toContainText("Get the Daily Gist newsletter");
+  });
+
+  test("the site is installable: manifest, icons and service worker", async ({ page, request }) => {
+    await page.goto("/");
+    await expect(page.locator('link[rel="manifest"]')).toHaveAttribute("href", "/manifest.webmanifest");
+    const manifest = await (await request.get("/manifest.webmanifest")).json();
+    expect(manifest).toMatchObject({ name: "CoinGist", display: "standalone", start_url: "/?source=app" });
+    for (const icon of manifest.icons) expect((await request.get(icon.src)).ok()).toBe(true);
+    expect((await request.get("/sw.js")).ok()).toBe(true);
+  });
+
+  test("the home page shows upcoming events and open opportunities; both are in the menu and the sitemap", async ({ page, request }) => {
+    await page.goto("/");
+    await expect(page.getByRole("region", { name: "Upcoming events" }).getByRole("heading", { level: 3 }).first()).toHaveText("Stablecoins 101 live class (sample)");
+    await expect(page.getByRole("region", { name: "Airdrops & opportunities" })).toContainText("Payments builder grant (sample)");
+    await expect(page.getByRole("contentinfo").getByRole("link", { name: "Events" })).toHaveAttribute("href", "/events");
+    const sitemap = await (await request.get("/sitemap-pages.xml")).text();
+    expect(sitemap).toContain("/events/lagos-blockchain-summit</loc>");
+    expect(sitemap).toContain("/opportunities</loc>");
+  });
+});
+
+test.describe("launch pages and price ticker", () => {
+  test("a form post that isn't a form gets a 400, not a server error", async ({ request }) => {
+    for (const path of ["/newsletter", "/resources/theme"]) {
+      const res = await request.post(path, { headers: { "content-type": "text/plain" }, data: "junk" });
+      expect(res.status(), path).toBe(400);
+    }
+  });
+
+  test("advertise, privacy and terms are linked from the footer, indexable and in the sitemap", async ({ page, request }) => {
+    for (const [name, path, heading] of [
+      ["Advertise", "/advertise", "Advertise with CoinGist"],
+      ["Privacy", "/privacy", "Privacy policy"],
+      ["Terms", "/terms", "Terms of use"],
+    ] as const) {
+      await page.goto("/");
+      await page.getByRole("contentinfo").getByRole("link", { name, exact: true }).click();
+      await expect(page).toHaveURL(path);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(heading);
+      await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /index, follow/);
+    }
+    const sitemap = await (await request.get("/sitemap-pages.xml")).text();
+    for (const path of ["/advertise", "/privacy", "/terms"]) expect(sitemap).toContain(`https://coingist.test${path}</loc>`);
+  });
+
+  test("privacy policy names the cookies the site actually sets", async ({ page }) => {
+    await page.goto("/privacy");
+    for (const name of ["theme", "cg_signed_in", "Plausible", "Beehiiv", "Supabase"]) await expect(page.locator("main")).toContainText(name);
+  });
+
+  test("the price ticker shows labelled sample prices with direction in words", async ({ page }) => {
+    await page.goto("/");
+    const ticker = page.getByRole("region", { name: "Crypto prices" });
+    await expect(ticker).toBeVisible();
+    await expect(ticker.getByRole("listitem")).toHaveCount(6);
+    await expect(ticker.getByRole("listitem").first()).toContainText("BTC");
+    await expect(ticker.getByRole("listitem").first()).toContainText("$64,000");
+    await expect(ticker.getByRole("listitem").first()).toContainText("up 1.8%");
+    await expect(ticker.getByRole("listitem").nth(1)).toContainText("down 0.9%");
+  });
 });

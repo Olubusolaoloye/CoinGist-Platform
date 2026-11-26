@@ -1,5 +1,7 @@
-import { Link } from "react-router";
+import { useEffect } from "react";
+import { Link, useLocation, useRouteLoaderData } from "react-router";
 import type { PublicAdSlot } from "@coingist/types";
+import { Picture } from "~/components/Picture";
 import { track } from "~/lib/analytics";
 
 /**
@@ -7,13 +9,76 @@ import { track } from "~/lib/analytics";
  * and no inline styles, which the CSP blocks.
  */
 const RATIO: Record<string, string> = {
-  "home-banner": "aspect-[1200/250]",
+  "home-banner": "aspect-[24/5]",
   "article-end": "aspect-[3/1]",
 };
 
+/** How wide each slot is ever shown (CSS px), and on which screens, so the CDN sends the right size. */
+const SIZE: Record<string, { maxWidth: number; sizes: string }> = {
+  "home-banner": { maxWidth: 1200, sizes: "(min-width: 1280px) 1200px, calc(100vw - 2rem)" },
+  "article-end": { maxWidth: 736, sizes: "(min-width: 800px) 736px, calc(100vw - 2rem)" },
+};
+
+type AdSenseRoot = { adsense: { client: string; slots: Partial<Record<string, string>> } | null };
+
+declare global {
+  interface Window {
+    adsbygoogle?: unknown[];
+  }
+}
+
+/**
+ * Google AdSense in a slot with no direct booking. The box keeps the slot's shape. Until Google
+ * fills it (or if it has no ad to show), the fallback underneath is what readers see; the "Ad"
+ * label only appears once an ad is actually there.
+ */
+function AdSenseBox({
+  client,
+  unit,
+  ratio,
+  className,
+  fallback,
+}: {
+  client: string;
+  unit: string;
+  ratio: string;
+  className: string;
+  fallback: React.ReactNode | null;
+}) {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    try {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    } catch {
+      // Blocked by an ad blocker or not loaded yet: the fallback stays.
+    }
+  }, [pathname, unit]);
+  return (
+    <aside aria-label="Advertisement" className={`ad-box ${className}`} data-collapse={fallback ? undefined : ""}>
+      <p className="ad-label mb-2 flex items-center gap-2 text-xs text-muted">
+        <span className="rounded-full border border-line px-2 py-0.5 font-semibold tracking-wide uppercase">Ad</span>
+        <span>Advertisement</span>
+      </p>
+      <div className={`relative ${ratio} min-h-28 w-full overflow-hidden rounded-2xl`}>
+        {fallback ? <div className="ad-fallback absolute inset-0">{fallback}</div> : null}
+        {/* A new element per page, so client-side navigation gets a fresh ad. */}
+        <ins
+          key={pathname}
+          className="adsbygoogle absolute inset-0 block h-full w-full"
+          data-ad-client={client}
+          data-ad-slot={unit}
+          data-full-width-responsive="false"
+          suppressHydrationWarning
+        />
+      </div>
+    </aside>
+  );
+}
+
 /**
  * A reserved ad slot. A live booking shows the sponsor's creative (clearly labelled, links via
- * a counting redirect, rel="sponsored"); an empty slot shows a newsletter promo or nothing.
+ * a counting redirect, rel="sponsored"). An empty slot shows Google AdSense when it's set up
+ * for that slot, falling back to a newsletter promo (or nothing) when Google has no ad.
  */
 export function AdSlot({
   slot,
@@ -28,27 +93,36 @@ export function AdSlot({
   emptyPromo?: boolean;
 }) {
   const ratio = RATIO[slotKey] ?? "aspect-[3/1]";
+  const size = SIZE[slotKey] ?? { maxWidth: 1200, sizes: "100vw" };
   const booking = slot?.booking ?? null;
+  const adsense = useRouteLoaderData<AdSenseRoot>("root")?.adsense ?? null;
+  const unit = adsense?.slots[slotKey];
 
   if (booking) {
     return (
       <aside aria-label="Advertisement" className={className}>
-        <p className="mb-1.5 text-xs text-muted">Advertisement from {booking.sponsorName}</p>
+        <p className="mb-2 flex items-center gap-2 text-xs text-muted">
+          <span className="rounded-full border border-line px-2 py-0.5 font-semibold tracking-wide uppercase">Ad</span>
+          <span>Advertisement from {booking.sponsorName}</span>
+        </p>
         <a
           href={`/go/ad/${booking.id}`}
           rel="sponsored noopener"
           target="_blank"
           onClick={() => track("Ad Click", { slot: slotKey, sponsor: booking.sponsorName })}
-          className="block overflow-hidden rounded-md border border-line"
+          className={`glass block ${ratio} overflow-hidden rounded-2xl transition-transform duration-200 hover:-translate-y-0.5 motion-reduce:transform-none`}
         >
-          <img
-            src={booking.creativeUrl}
+          {/* The box keeps the slot's shape, so a creative of the wrong size can't move the page. */}
+          <Picture
+            url={booking.creativeUrl}
+            maxWidth={size.maxWidth}
+            sizes={size.sizes}
             alt={booking.altText}
             width={slot!.width}
             height={slot!.height}
             loading="lazy"
             decoding="async"
-            className="block h-auto w-full"
+            className="block h-full w-full object-cover"
           />
           <span className="sr-only"> (opens in a new tab)</span>
         </a>
@@ -56,17 +130,33 @@ export function AdSlot({
     );
   }
 
+  const promo = emptyPromo ? <NewsletterPromo ratio={ratio} /> : null;
+  if (adsense && unit) {
+    return <AdSenseBox client={adsense.client} unit={unit} ratio={ratio} className={className} fallback={promo} />;
+  }
+
   // Rendered on the server with the page, so an empty slot causes no layout shift.
-  if (!emptyPromo) return null;
+  if (!promo) return null;
   return (
     <aside aria-label="From CoinGist" className={className}>
-      <Link
-        to="/newsletter"
-        className={`flex ${ratio} min-h-24 w-full flex-col items-start justify-center gap-1 rounded-md bg-gist px-6 text-gist-ink hover:opacity-95`}
-      >
-        <span className="font-display text-xl font-extrabold sm:text-2xl">The gist, every weekday morning</span>
-        <span className="text-sm font-semibold underline underline-offset-4">Get the Daily Gist newsletter</span>
-      </Link>
+      {promo}
     </aside>
+  );
+}
+
+function NewsletterPromo({ ratio }: { ratio: string }) {
+  return (
+    <Link
+      to="/newsletter"
+      className={`relative flex ${ratio} h-full min-h-28 w-full flex-col items-start justify-center gap-1 overflow-hidden rounded-2xl bg-gist px-6 text-gist-ink hover:opacity-95 sm:px-10`}
+    >
+      <svg aria-hidden="true" viewBox="0 0 200 200" className="pointer-events-none absolute -top-10 -right-8 hidden size-56 text-night sm:block">
+        <circle cx="100" cy="100" r="80" fill="currentColor" />
+        <circle cx="100" cy="100" r="52" fill="none" stroke="var(--gist)" strokeWidth="14" />
+      </svg>
+      <span className="relative text-xs font-semibold tracking-wide uppercase opacity-80">Free newsletter</span>
+      <span className="relative font-display text-xl font-extrabold sm:text-3xl">The gist, every weekday morning</span>
+      <span className="relative text-sm font-semibold underline underline-offset-4">Get the Daily Gist newsletter</span>
+    </Link>
   );
 }

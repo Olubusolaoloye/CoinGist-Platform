@@ -9,13 +9,16 @@ import {
   ScrollRestoration,
   useRouteLoaderData,
 } from "react-router";
+import { useEffect } from "react";
 import fontUrl from "@fontsource-variable/bricolage-grotesque/files/bricolage-grotesque-latin-wght-normal.woff2?url";
 import type { Route } from "./+types/root";
 import { BottomNav } from "./components/BottomNav";
+import { PriceTicker } from "./components/PriceTicker";
 import { SiteFooter } from "./components/SiteFooter";
 import { SiteHeader } from "./components/SiteHeader";
 import { api } from "./lib/api.server";
-import { analyticsConfig, isDemo, siteConfig } from "./lib/config.server";
+import { adsenseConfig, analyticsConfig, isDemo, siteConfig } from "./lib/config.server";
+import { HIDDEN_NAV_TOPICS } from "./lib/format";
 import { readTheme } from "./lib/theme.server";
 import { useNonce } from "./lib/nonce";
 import "./app.css";
@@ -24,20 +27,25 @@ export const links: Route.LinksFunction = () => [
   { rel: "preload", href: fontUrl, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
   { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
   { rel: "apple-touch-icon", href: "/logo-512.png" },
+  { rel: "manifest", href: "/manifest.webmanifest" },
   { rel: "alternate", type: "application/rss+xml", title: "CoinGist", href: "/rss.xml" },
 ];
 
 export async function loader({ request }: Route.LoaderArgs) {
   const site = siteConfig();
   // Navigation must not take the whole site down if the API hiccups.
-  const categories = await api.listCategories().catch(() => []);
+  const [categories, prices] = await Promise.all([api.listCategories().catch(() => []), api.prices()]);
   const analytics = analyticsConfig();
   return data({
     site,
-    categories,
+    // Menus, topic tiles and follow suggestions use this trimmed list.
+    categories: categories.filter((c) => !HIDDEN_NAV_TOPICS.includes(c.slug)),
+    prices,
     theme: readTheme(request),
     demo: isDemo(),
     analytics: analytics ? { domain: analytics.domain, src: analytics.src } : null,
+    // Publisher and ad unit IDs are public (they appear in every page with ads).
+    adsense: adsenseConfig(),
   });
 }
 
@@ -54,6 +62,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content="#1b1f5e" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="CoinGist" />
         <style nonce={nonce} dangerouslySetInnerHTML={{ __html: fontFace }} />
         <Meta />
         <Links />
@@ -69,8 +79,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <script nonce={nonce} defer data-domain={root.analytics.domain} src={root.analytics.src} />
           </>
         ) : null}
+        {root?.adsense ? (
+          // Google's loader also shows its consent message to readers in the EU, UK and Switzerland.
+          <script
+            nonce={nonce}
+            async
+            crossOrigin="anonymous"
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${root.adsense.client}`}
+          />
+        ) : null}
       </head>
       <body className="min-h-dvh font-sans antialiased">
+        <div aria-hidden="true" className="page-haze" />
         <a
           href="#main"
           className="sr-only z-50 rounded-md bg-gist px-4 py-2 font-semibold text-gist-ink focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -83,6 +103,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </p>
         ) : null}
         <SiteHeader categories={root?.categories ?? []} theme={theme} />
+        {root?.prices ? <PriceTicker ticker={root.prices} /> : null}
         <div id="main" tabIndex={-1} className="outline-none">
           {children}
         </div>
@@ -96,6 +117,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  // Installable app + offline reading. Production only: Vite's dev server must not be cached.
+  useEffect(() => {
+    if (!import.meta.env.PROD || !("serviceWorker" in navigator)) return;
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }, []);
   return <Outlet />;
 }
 

@@ -146,6 +146,7 @@ describe("JSON-LD", () => {
       slug: "a",
       name: "A",
       avatarUrl: null,
+      title: null,
       bio: null,
       socials: { x: "https://x.com/a", bad: "javascript:alert(1)" },
       expertise: [],

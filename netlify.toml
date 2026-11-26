@@ -1,28 +1,13 @@
-# Netlify deploy of the public site (apps/web).
-# DEMO: the API runs as a function on in-memory sample data (source: apps/web/netlify/functions-src/api.mts).
+# Netlify deploy of the public site (apps/web). It reads stories from the production API,
+# which runs on the Studio site (API_URL, set in the Netlify site's environment variables).
 [build]
   base = "apps/web"
-  # The API function is pre-bundled into one file (esbuild); Netlify's own bundler can't see
-  # dependencies that live in other workspace packages.
-  command = "pnpm --filter @coingist/db embed-sql && pnpm build:functions && DEPLOY_TARGET=netlify pnpm build"
+  command = "DEPLOY_TARGET=netlify pnpm build"
   publish = "build/client"
 
 [build.environment]
   NODE_VERSION = "22"
   PNPM_VERSION = "10.28.0"
-
-[functions]
-  directory = "netlify/functions"
-  node_bundler = "esbuild"
-  # Ships its WebAssembly files from node_modules instead of being bundled.
-  external_node_modules = ["@electric-sql/pglite"]
-
-# Demo API. Rewrites beat the React Router function's catch-all.
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/api/:splat"
-  status = 200
-  force = true
 
 # Static caching. Hashed build files never change; public files keep fixed names, so a day.
 [[headers]]
@@ -31,7 +16,7 @@
     Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
-  for = "/sample/*"
+  for = "/covers/*"
   [headers.values]
     Cache-Control = "public, max-age=86400"
 
@@ -49,3 +34,24 @@
   for = "/og-default.png"
   [headers.values]
     Cache-Control = "public, max-age=86400"
+
+# The service worker must update promptly; the manifest and icons rarely change.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+    Content-Type = "application/manifest+json"
+
+[[headers]]
+  for = "/icon-*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400"
+
+# Netlify Image CDN may resize uploads from Supabase Storage (see app/lib/image.ts).
+[images]
+  remote_images = ["https://[a-z0-9]+\\.supabase\\.co/storage/v1/object/public/.*"]

@@ -2,7 +2,7 @@ import { Link } from "react-router";
 import type { Category } from "@coingist/types";
 
 const col = "font-display text-base font-bold text-night-ink";
-const item = "text-night-muted hover:text-night-ink hover:underline";
+const item = "text-night-muted hover:text-night-ink";
 
 /** Always-dark footer with link columns and the site-wide disclaimer. */
 export function SiteFooter({ categories }: { categories: Category[] }) {
@@ -19,20 +19,23 @@ export function SiteFooter({ categories }: { categories: Category[] }) {
             education. Crypto assets are volatile and you can lose money. Sponsored content is always labelled.
           </p>
         </div>
-        <nav aria-label="Sections">
+        <nav aria-label="Sections in footer">
           <h2 className={col}>Read</h2>
           <ul className="mt-3 space-y-2 text-sm">
             <li><Link to="/news" className={item}>News</Link></li>
             <li><Link to="/gist" className={item}>Gist</Link></li>
-            <li><Link to="/learn" className={item}>Learn</Link></li>
-            <li><Link to="/africa" className={item}>Africa</Link></li>
+            <li><Link to="/live" className={item}>Live</Link></li>
+            <li><Link to="/learn-earn" className={item}>Learn &amp; Earn</Link></li>
+            <li><Link to="/learn" className={item}>Learn crypto</Link></li>
+            <li><Link to="/opportunities" className={item}>Airdrops &amp; opportunities</Link></li>
+            <li><Link to="/events" className={item}>Events</Link></li>
             <li><Link to="/search" className={item}>Search</Link></li>
           </ul>
         </nav>
         <nav aria-label="Topics in footer">
           <h2 className={col}>Topics</h2>
           <ul className="mt-3 space-y-2 text-sm">
-            {categories.filter((c) => c.slug !== "africa").map((c) => (
+            {categories.map((c) => (
               <li key={c.slug}><Link to={`/category/${c.slug}`} className={item}>{c.name}</Link></li>
             ))}
           </ul>
@@ -42,6 +45,9 @@ export function SiteFooter({ categories }: { categories: Category[] }) {
           <ul className="mt-3 space-y-2 text-sm">
             <li><Link to="/about" className={item}>About</Link></li>
             <li><Link to="/editorial-policy" className={item}>Editorial policy</Link></li>
+            <li><Link to="/advertise" className={item}>Advertise</Link></li>
+            <li><Link to="/privacy" className={item}>Privacy</Link></li>
+            <li><Link to="/terms" className={item}>Terms</Link></li>
             <li><Link to="/newsletter" className={item}>Newsletters</Link></li>
             <li><a href="/rss.xml" className={item}>RSS feed</a></li>
           </ul>

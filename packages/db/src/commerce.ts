@@ -1,6 +1,7 @@
 import type {
   AdBooking,
   AdBookingInput,
+  AdBookingUpdate,
   AdSlot,
   BlockedDomain,
   BlockedLink,
@@ -41,6 +42,7 @@ export interface CommerceRepository {
   listBookings(actor: SessionClaims): Promise<AdBooking[]>;
   createBooking(actor: SessionClaims, input: AdBookingInput): Promise<AdBooking>;
   setBookingApproved(actor: SessionClaims, id: string, approved: boolean): Promise<AdBooking>;
+  updateBooking(actor: SessionClaims, id: string, input: AdBookingUpdate): Promise<AdBooking>;
   deleteBooking(actor: SessionClaims, id: string): Promise<void>;
 
   /** Live ads for a placement (one per slot), for the public site. */
@@ -277,6 +279,27 @@ export function createCommerceRepository(db: Database): CommerceRepository {
     setBookingApproved: (actor, id, approved) =>
       as(actor, async (q) => {
         requireRow(await q.query("update public.ad_bookings set approved = $2 where id = $1 returning id", [id, approved]), "Booking");
+        return loadBooking(q, id);
+      }),
+
+    updateBooking: (actor, id, input) =>
+      as(actor, async (q) => {
+        const cols: Record<keyof AdBookingUpdate, string> = {
+          startsAt: "starts_at", endsAt: "ends_at", creativeUrl: "creative_url", clickUrl: "click_url", altText: "alt_text",
+        };
+        const keys = (Object.keys(input) as (keyof AdBookingUpdate)[]).filter((k) => input[k] !== undefined);
+        if (!keys.length) return loadBooking(q, id);
+        const sets = keys.map((k, i) => `${cols[k]} = $${i + 2}`);
+        // A new creative, alt text or link goes back to awaiting approval (only if it really changed).
+        // Every SET expression sees the row as it was, so this compares against the old values.
+        const content = keys.filter((k) => k === "creativeUrl" || k === "clickUrl" || k === "altText");
+        if (content.length) {
+          sets.push(`approved = approved and ${content.map((k) => `${cols[k]} is not distinct from $${keys.indexOf(k) + 2}`).join(" and ")}`);
+        }
+        requireRow(
+          await q.query(`update public.ad_bookings set ${sets.join(", ")} where id = $1 returning id`, [id, ...keys.map((k) => input[k])]),
+          "Booking",
+        );
         return loadBooking(q, id);
       }),
 

@@ -105,4 +105,19 @@ describe("readingTimeMinutes", () => {
     expect(readingTimeMinutes(words(10))).toBe(1);
     expect(readingTimeMinutes(words(1100))).toBe(5);
   });
+
+  it("uses right-sized sources for body images when given, after the safety check", () => {
+    const seen: string[] = [];
+    const doc = { type: "doc" as const, content: [
+      { type: "image", attrs: { src: "https://cdn.test/a.webp", alt: "A" } },
+      { type: "image", attrs: { src: "javascript:alert(1)", alt: "B" } },
+    ] };
+    const out = renderToStaticMarkup(
+      <RichText doc={doc} imageSizes="100vw" imageSources={(src) => { seen.push(src); return { src: `/cdn?u=${encodeURIComponent(src)}&w=640`, srcSet: `/cdn?u=x&w=320 320w` }; }} />,
+    );
+    expect(seen).toEqual(["https://cdn.test/a.webp"]);
+    expect(out).toContain('src="/cdn?u=https%3A%2F%2Fcdn.test%2Fa.webp&amp;w=640"');
+    expect(out).toContain('srcSet="/cdn?u=x&amp;w=320 320w"');
+    expect(out).toContain('sizes="100vw"');
+  });
 });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { MAX_BODY_BYTES } from "./richtext.js";
+import type { BlockedLink } from "./commerce.js";
 import type { CategoryRef, ImageRef, RichTextDoc, TagRef } from "./content.js";
 import { POST_STATUSES, POST_TYPES, type PostStatus, type PostType } from "./enums.js";
 
@@ -104,6 +105,8 @@ export interface StudioPostSummary {
   scheduledFor: string | null;
   publishedAt: string | null;
   openComments: number;
+  aiAssisted: boolean;
+  heroImage: ImageRef | null;
 }
 
 export interface StudioPost {
@@ -152,4 +155,25 @@ export interface RevisionSummary {
 }
 export interface Revision extends RevisionSummary {
   body: RichTextDoc;
+}
+
+/** Admin → Site images: a category's description and cover image. */
+export const UpdateCategoryInputSchema = z
+  .object({
+    description: optionalText(300),
+    imageUrl: httpsOrPath,
+    imageAlt: optionalText(300),
+  })
+  .refine((v) => !(v.imageUrl && !v.imageAlt), { message: "Add alt text for the image", path: ["imageAlt"] });
+export type UpdateCategoryInput = z.infer<typeof UpdateCategoryInputSchema>;
+
+/** Everything the story editor needs, loaded in one request. */
+export interface StudioEditorBundle {
+  post: StudioPost;
+  comments: EditorialComment[];
+  revisions: RevisionSummary[];
+  categories: CategoryRef[];
+  tags: TagRef[];
+  /** Links in the story that point at blocked domains. */
+  blocked: BlockedLink[];
 }

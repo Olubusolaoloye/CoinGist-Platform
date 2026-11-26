@@ -6,12 +6,15 @@ import {
   PaymentListQuerySchema,
   PaymentUpdateSchema,
   RoleSchema,
+  StaffInviteInputSchema,
+  UpdateCategoryInputSchema,
   UserStatusSchema,
 } from "@coingist/types";
 import type { AppEnv } from "../context.js";
 import { requirePermission } from "../middleware.js";
 
 const IdParam = z.object({ id: z.string().uuid() });
+const SlugParam = z.object({ slug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(100) });
 const Paging = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
@@ -29,6 +32,20 @@ export const adminRoutes = new Hono<AppEnv>()
   })
   .get("/dashboard", requirePermission("user:manage_roles"), async (c) =>
     c.json({ dashboard: await c.var.repos.insights.adminDashboard(c.var.claims!) }),
+  )
+  // Site images: category covers
+  .get("/categories", requirePermission("site:manage"), async (c) =>
+    c.json({ categories: await c.var.repos.studio.listCategoryDetails(c.var.claims!) }),
+  )
+  .patch(
+    "/categories/:slug",
+    requirePermission("site:manage"),
+    zValidator("param", SlugParam),
+    zValidator("json", UpdateCategoryInputSchema),
+    async (c) => {
+      const category = await c.var.repos.studio.updateCategory(c.var.claims!, c.req.valid("param").slug, c.req.valid("json"));
+      return category ? c.json({ category }) : c.json({ error: { code: "not_found", message: "Not found" } }, 404);
+    },
   )
   // Writer payouts
   .get("/payments", requirePermission("payments:manage"), zValidator("query", PaymentListQuerySchema), async (c) =>
@@ -80,6 +97,19 @@ export const adminRoutes = new Hono<AppEnv>()
       return c.json({ user });
     },
   )
+  // Invites: admins invite an email address to a Studio role (Studio sends the sign-in email).
+  .get("/invites", requirePermission("user:manage_roles"), async (c) =>
+    c.json({ invites: await c.var.repos.users.listInvites(c.var.claims!) }),
+  )
+  .post("/invites", requirePermission("user:manage_roles"), zValidator("json", StaffInviteInputSchema), async (c) => {
+    const input = c.req.valid("json");
+    const outcome = await c.var.repos.users.invite(c.var.claims!, input);
+    return c.json({ outcome, email: input.email, role: input.role }, outcome === "invited" ? 201 : 200);
+  })
+  .delete("/invites/:id", requirePermission("user:manage_roles"), zValidator("param", IdParam), async (c) => {
+    await c.var.repos.users.cancelInvite(c.var.claims!, c.req.valid("param").id);
+    return c.body(null, 204);
+  })
   .get("/audit-logs", requirePermission("audit:view"), zValidator("query", AuditQuery), async (c) => {
     const logs = await c.var.repos.audit.list(c.var.claims!, c.req.valid("query"));
     return c.json({ logs });
